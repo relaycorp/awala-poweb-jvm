@@ -1,1 +1,1 @@
-# endpoint-android
+# JVM PoWebSockets Implementation

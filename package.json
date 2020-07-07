@@ -1,0 +1,7 @@
+{
+  "name": "relaynet-powebsockets-jvm",
+  "devDependencies": {
+    "@relaycorp/shared-config": "^1.3.3",
+    "gradle-semantic-release-plugin": "^1.4.1"
+  }
+}
