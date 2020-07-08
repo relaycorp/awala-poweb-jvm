@@ -126,7 +126,7 @@ publishing {
                 }
                 licenses {
                     license {
-                        name.set("MIT")
+                        name.set("Apache-2.0")
                     }
                 }
                 scm {
@@ -141,8 +141,7 @@ publishing {
         maven {
             // publish=1 automatically publishes the version
             url = uri(
-                    "https://api.bintray.com/maven/relaycorp/maven/" +
-                            "tech.relaycorp.poweb/;publish=1"
+                    "https://api.bintray.com/maven/relaycorp/maven/tech.relaycorp.poweb/;publish=1"
             )
             credentials {
                 username = System.getenv("BINTRAY_USERNAME")
