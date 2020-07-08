@@ -16,6 +16,7 @@ plugins {
     id("com.diffplug.gradle.spotless") version "3.27.1"
     id('jacoco')
     id("com.google.protobuf") version "$protobufGradleVersion"
+    id('idea')
 }
 
 group = "tech.relaycorp"
