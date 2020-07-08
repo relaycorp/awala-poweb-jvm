@@ -1,1 +1,1 @@
-# JVM PoWebSockets Implementation
+# JVM PoWeb Implementation

@@ -112,10 +112,10 @@ publishing {
             from(components["java"])
 
             pom {
-                val scmUrl = "https://github.com/relaycorp/relaynet-powebsockets-jvm"
+                val scmUrl = "https://github.com/relaycorp/relaynet-poweb-jvm"
 
                 name.set(rootProject.name)
-                description.set("PoWebSockets JVM library")
+                description.set("PoWeb JVM library")
                 url.set(scmUrl)
                 developers {
                     developer {
@@ -142,7 +142,7 @@ publishing {
             // publish=1 automatically publishes the version
             url = uri(
                     "https://api.bintray.com/maven/relaycorp/maven/" +
-                            "tech.relaycorp.powebsockets/;publish=1"
+                            "tech.relaycorp.poweb/;publish=1"
             )
             credentials {
                 username = System.getenv("BINTRAY_USERNAME")
