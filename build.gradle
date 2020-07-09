@@ -57,13 +57,6 @@ tasks.withType(KotlinCompile).configureEach {
 protobuf {
     protoc { artifact = "com.google.protobuf:protoc:$protobufVersion" }
 }
-sourceSets {
-    main {
-        kotlin {
-            setBuildDir("build/generated/source/proto/main/java")
-        }
-    }
-}
 
 tasks.withType(KotlinCompile).configureEach {
     kotlinOptions.jvmTarget = "1.8"

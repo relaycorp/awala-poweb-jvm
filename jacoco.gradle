@@ -5,10 +5,7 @@ jacoco {
 def jacocoFiles = files([
         fileTree(
                 dir: project.buildDir,
-                includes: ["generated/source/proto/main/java/"],
-                excludes: [
-                        '**/tech.relaycorp.poweb.internal.protobuf_messages.handshake/**'
-                ]
+                includes: ["classes/kotlin/main/"],
         )
 ])
 
