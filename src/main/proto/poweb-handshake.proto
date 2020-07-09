@@ -1,14 +1,14 @@
 syntax = "proto3";
 
 option java_multiple_files = true;
-option java_package = "tech.relaycorp.poweb.messages.handshake";
+option java_package = "tech.relaycorp.poweb.internal.protobuf_messages.handshake";
 
 package relaynet.poweb.handshake;
 
 message Challenge {
     // Sent by the gateway at the start of the connection
 
-    string gateway_nonce = 1;
+    bytes gateway_nonce = 1;
 }
 
 message Response {
