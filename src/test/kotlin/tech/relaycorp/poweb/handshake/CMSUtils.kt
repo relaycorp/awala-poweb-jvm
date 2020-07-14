@@ -13,8 +13,8 @@ import tech.relaycorp.relaynet.wrappers.x509.Certificate
 
 object CMSUtils {
     internal fun verifySignature(
-            cmsSignedData: ByteArray,
-            plaintext: ByteArray
+        cmsSignedData: ByteArray,
+        plaintext: ByteArray
     ): Certificate {
         val signedData = parseCmsSignedData(cmsSignedData, plaintext)
 
@@ -37,8 +37,8 @@ object CMSUtils {
     }
 
     private fun parseCmsSignedData(
-            cmsSignedDataSerialized: ByteArray,
-            expectedPlaintext: ByteArray
+        cmsSignedDataSerialized: ByteArray,
+        expectedPlaintext: ByteArray
     ): CMSSignedData {
         val asn1Stream = ASN1InputStream(cmsSignedDataSerialized)
         val asn1Sequence = asn1Stream.readObject()
