@@ -53,16 +53,14 @@ java {
     withSourcesJar()
 }
 
-tasks.withType(KotlinCompile).configureEach {
-    kotlinOptions.jvmTarget = "1.8"
+tasks.withType(KotlinCompile).all {
+    kotlinOptions {
+        jvmTarget = JavaVersion.VERSION_1_8
+    }
 }
 
 protobuf {
     protoc { artifact = "com.google.protobuf:protoc:$protobufVersion" }
-}
-
-tasks.withType(KotlinCompile).configureEach {
-    kotlinOptions.jvmTarget = "1.8"
 }
 
 tasks.dokka {
