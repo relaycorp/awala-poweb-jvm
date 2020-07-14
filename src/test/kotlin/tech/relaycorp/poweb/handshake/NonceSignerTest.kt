@@ -174,6 +174,15 @@ class NonceSignerTest {
         assertEquals(sha256Oid, signerInfo.digestAlgorithmID.algorithm)
     }
 
+    @Test
+    fun `Signature should verify`() {
+        val serialization = signer.sign(nonce)
+
+        val signerCertificate = CMSUtils.verifySignature(serialization, nonce)
+
+        assertEquals(certificate, signerCertificate)
+    }
+
     private fun parseDer(derSerialization: ByteArray): ASN1Primitive {
         val asn1Stream = ASN1InputStream(derSerialization)
         return asn1Stream.readObject()
