@@ -10,7 +10,7 @@ import org.bouncycastle.operator.jcajce.JcaDigestCalculatorProviderBuilder
 import tech.relaycorp.relaynet.wrappers.x509.Certificate
 import java.security.PrivateKey
 
-class NonceSigner(private val certificate: Certificate, private val privateKey: PrivateKey) {
+class NonceSigner(internal val certificate: Certificate, private val privateKey: PrivateKey) {
     fun sign(nonce: ByteArray): ByteArray {
         val signedDataGenerator = CMSSignedDataGenerator()
 
