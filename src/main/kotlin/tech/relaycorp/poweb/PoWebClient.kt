@@ -4,8 +4,7 @@ import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.features.websocket.DefaultClientWebSocketSession
 import io.ktor.client.features.websocket.WebSockets
-import io.ktor.client.features.websocket.ws
-import io.ktor.client.features.websocket.wss
+import io.ktor.client.features.websocket.webSocket
 import io.ktor.http.cio.websocket.CloseReason
 import io.ktor.http.cio.websocket.Frame
 import io.ktor.http.cio.websocket.close
@@ -30,17 +29,13 @@ class PoWebClient internal constructor(
     @KtorExperimentalAPI
     override fun close() = ktorClient.close()
 
+    private val wsUrl = "ws${if (useTls) "s" else ""}://$hostName:$port"
+
     @KtorExperimentalAPI
     internal suspend fun wsConnect(
         path: String,
         block: suspend DefaultClientWebSocketSession.() -> Unit
-    ) {
-        if (useTls) {
-            ktorClient.wss(host = hostName, port = port, path = path, block = block)
-        } else {
-            ktorClient.ws(host = hostName, port = port, path = path, block = block)
-        }
-    }
+    ) = ktorClient.webSocket("${wsUrl}$path", block = block)
 
     companion object {
         private const val defaultLocalPort = 276
