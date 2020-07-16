@@ -44,6 +44,7 @@ dependencies {
     testImplementation("com.squareup.okhttp3:okhttp:$okhttpVersion")
     testImplementation("com.squareup.okhttp3:mockwebserver:$okhttpVersion")
     testImplementation("com.squareup.okio:okio:2.7.0")
+    testImplementation("org.awaitility:awaitility:4.0.3")
 
     // Protobuf
     implementation("com.google.protobuf:protobuf-gradle-plugin:$protobufGradleVersion")
