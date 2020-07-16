@@ -291,6 +291,8 @@ class PoWebClientTest {
             client.use {
                 runBlocking { client.wsConnect("/") { handshake(arrayOf(signer, signer2)) } }
 
+                mockWebServer.takeRequest()
+
                 assertTrue(response is tech.relaycorp.poweb.handshake.Response)
                 val nonceSignatures = response!!.nonceSignatures
                 assertEquals(
