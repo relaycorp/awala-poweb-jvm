@@ -240,6 +240,7 @@ class PoWebClientTest {
                 assertEquals("Server sent an invalid handshake challenge", exception.message)
                 assertTrue(exception.cause is InvalidMessageException)
             }
+            mockWebServer.takeRequest()
             assertEquals(CloseReason.Codes.VIOLATED_POLICY.code.toInt(), closeCode)
         }
 
@@ -266,6 +267,7 @@ class PoWebClientTest {
 
                 assertEquals("At least one nonce signer must be specified", exception.message)
             }
+            mockWebServer.takeRequest()
             assertEquals(CloseReason.Codes.NORMAL.code.toInt(), closeCode)
         }
 
