@@ -19,6 +19,7 @@ import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import okio.ByteString
 import okio.ByteString.Companion.toByteString
+import org.awaitility.Awaitility.await
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Nested
@@ -240,7 +241,6 @@ class PoWebClientTest {
                 assertEquals("Server sent an invalid handshake challenge", exception.message)
                 assertTrue(exception.cause is InvalidMessageException)
             }
-            mockWebServer.takeRequest()
             assertEquals(CloseReason.Codes.VIOLATED_POLICY.code.toInt(), closeCode)
         }
 
@@ -267,7 +267,7 @@ class PoWebClientTest {
 
                 assertEquals("At least one nonce signer must be specified", exception.message)
             }
-            mockWebServer.takeRequest()
+            await().until { closeCode is Int }
             assertEquals(CloseReason.Codes.NORMAL.code.toInt(), closeCode)
         }
 
@@ -293,9 +293,8 @@ class PoWebClientTest {
             client.use {
                 runBlocking { client.wsConnect("/") { handshake(arrayOf(signer, signer2)) } }
 
-                mockWebServer.takeRequest()
+                await().until { response is tech.relaycorp.poweb.handshake.Response }
 
-                assertTrue(response is tech.relaycorp.poweb.handshake.Response)
                 val nonceSignatures = response!!.nonceSignatures
                 assertEquals(
                         signer.certificate,
