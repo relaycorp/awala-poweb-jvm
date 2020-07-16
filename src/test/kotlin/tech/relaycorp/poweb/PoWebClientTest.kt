@@ -241,6 +241,7 @@ class PoWebClientTest {
                 assertEquals("Server sent an invalid handshake challenge", exception.message)
                 assertTrue(exception.cause is InvalidMessageException)
             }
+            await().until { closeCode is Int }
             assertEquals(CloseReason.Codes.VIOLATED_POLICY.code.toInt(), closeCode)
         }
 
