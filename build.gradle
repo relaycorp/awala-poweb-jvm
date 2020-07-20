@@ -36,7 +36,7 @@ dependencies {
     api('tech.relaycorp:relaynet:1.16.1')
 
     // Handshake nonce signatures
-    implementation("org.bouncycastle:bcpkix-jdk15on:1.64")
+    implementation("org.bouncycastle:bcpkix-jdk15on:1.65")
 
     implementation("io.ktor:ktor-client-okhttp:$ktorVersion")
     testImplementation("io.ktor:ktor-client-mock:$ktorVersion")
