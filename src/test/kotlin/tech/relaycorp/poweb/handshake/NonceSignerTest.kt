@@ -6,6 +6,8 @@ import org.bouncycastle.asn1.ASN1Primitive
 import org.bouncycastle.asn1.DEROctetString
 import org.bouncycastle.asn1.cms.Attribute
 import org.bouncycastle.asn1.cms.ContentInfo
+import org.bouncycastle.asn1.nist.NISTObjectIdentifiers
+import org.bouncycastle.asn1.pkcs.PKCSObjectIdentifiers
 import org.bouncycastle.cms.CMSSignedData
 import org.bouncycastle.util.CollectionStore
 import org.junit.jupiter.api.Nested
@@ -160,18 +162,30 @@ class NonceSignerTest {
     }
 
     @Test
+    fun `Signature algorithm should be RSA-PSS`() {
+        val serialization = signer.sign(nonce)
+
+        val cmsSignedData = parseCmsSignedData(serialization)
+
+        val signerInfo = cmsSignedData.signerInfos.first()
+        assertEquals(PKCSObjectIdentifiers.id_RSASSA_PSS.id, signerInfo.encryptionAlgOID)
+    }
+
+    @Test
     fun `SHA-256 should be used`() {
         val serialization = signer.sign(nonce)
 
         val cmsSignedData = parseCmsSignedData(serialization)
 
         assertEquals(1, cmsSignedData.digestAlgorithmIDs.size)
-        val sha256Oid = ASN1ObjectIdentifier("2.16.840.1.101.3.4.2.1")
-        assertEquals(sha256Oid, cmsSignedData.digestAlgorithmIDs.first().algorithm)
+        assertEquals(
+            NISTObjectIdentifiers.id_sha256,
+            cmsSignedData.digestAlgorithmIDs.first().algorithm
+        )
 
         val signerInfo = cmsSignedData.signerInfos.first()
 
-        assertEquals(sha256Oid, signerInfo.digestAlgorithmID.algorithm)
+        assertEquals(NISTObjectIdentifiers.id_sha256, signerInfo.digestAlgorithmID.algorithm)
     }
 
     @Test

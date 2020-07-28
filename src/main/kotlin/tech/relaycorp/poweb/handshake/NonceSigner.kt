@@ -7,6 +7,7 @@ import org.bouncycastle.cms.jcajce.JcaSignerInfoGeneratorBuilder
 import org.bouncycastle.operator.ContentSigner
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder
 import org.bouncycastle.operator.jcajce.JcaDigestCalculatorProviderBuilder
+import tech.relaycorp.poweb.CryptoUtils
 import tech.relaycorp.relaynet.wrappers.x509.Certificate
 import java.security.PrivateKey
 
@@ -14,7 +15,8 @@ class NonceSigner(internal val certificate: Certificate, private val privateKey:
     fun sign(nonce: ByteArray): ByteArray {
         val signedDataGenerator = CMSSignedDataGenerator()
 
-        val signerBuilder = JcaContentSignerBuilder("SHA256withRSA")
+        val signerBuilder = JcaContentSignerBuilder("SHA256WITHRSAANDMGF1")
+            .setProvider(CryptoUtils.BC_PROVIDER)
         val contentSigner: ContentSigner = signerBuilder.build(privateKey)
         val signerInfoGenerator = JcaSignerInfoGeneratorBuilder(
                 JcaDigestCalculatorProviderBuilder()
