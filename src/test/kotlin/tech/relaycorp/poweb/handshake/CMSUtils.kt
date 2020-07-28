@@ -9,6 +9,7 @@ import org.bouncycastle.cms.CMSSignedData
 import org.bouncycastle.cms.SignerInformation
 import org.bouncycastle.cms.jcajce.JcaSimpleSignerInfoVerifierBuilder
 import org.bouncycastle.util.Selector
+import tech.relaycorp.poweb.CryptoUtils
 import tech.relaycorp.relaynet.wrappers.x509.Certificate
 
 object CMSUtils {
@@ -20,8 +21,8 @@ object CMSUtils {
 
         val signerInfo = getSignerInfoFromSignedData(signedData)
 
-        // We shouldn't have to force this type cast but this is the only way I could get the code to work and, based on
-        // what I found online, that's what others have had to do as well
+        // We shouldn't have to force this type cast but this is the only way I could get the code
+        // to work and, based on what I found online, that's what others have had to do as well
         @Suppress("UNCHECKED_CAST") val signerCertSelector = X509CertificateHolderSelector(
                 signerInfo.sid.issuer,
                 signerInfo.sid.serialNumber
@@ -29,7 +30,9 @@ object CMSUtils {
 
         val signerCertMatches = signedData.certificates.getMatches(signerCertSelector)
         val signerCertificateHolder = signerCertMatches.first()
-        val verifier = JcaSimpleSignerInfoVerifierBuilder().build(signerCertificateHolder)
+        val verifier = JcaSimpleSignerInfoVerifierBuilder()
+            .setProvider(CryptoUtils.BC_PROVIDER)
+            .build(signerCertificateHolder)
 
         signerInfo.verify(verifier)
 
