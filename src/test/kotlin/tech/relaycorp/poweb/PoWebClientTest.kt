@@ -25,10 +25,10 @@ import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import tech.relaycorp.poweb.handshake.CMSUtils
 import tech.relaycorp.poweb.handshake.Challenge
 import tech.relaycorp.poweb.handshake.InvalidMessageException
 import tech.relaycorp.poweb.handshake.NonceSigner
+import tech.relaycorp.relaynet.crypto.SignedData
 import tech.relaycorp.relaynet.issueEndpointCertificate
 import tech.relaycorp.relaynet.wrappers.generateRSAKeyPair
 import java.time.ZonedDateTime
@@ -297,13 +297,17 @@ class PoWebClientTest {
                 await().until { response is tech.relaycorp.poweb.handshake.Response }
 
                 val nonceSignatures = response!!.nonceSignatures
+                val nonce1SignedData = SignedData.deserialize(nonceSignatures[0])
+                nonce1SignedData.verify(nonce)
                 assertEquals(
-                        signer.certificate,
-                        CMSUtils.verifySignature(nonceSignatures[0], nonce)
+                    signer.certificate,
+                    nonce1SignedData.signerCertificate
                 )
+                val nonce2SignedData = SignedData.deserialize(nonceSignatures[1])
+                nonce2SignedData.verify(nonce)
                 assertEquals(
-                        signer2.certificate,
-                        CMSUtils.verifySignature(nonceSignatures[1], nonce)
+                    signer2.certificate,
+                    nonce2SignedData.signerCertificate
                 )
             }
         }
