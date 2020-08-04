@@ -9,7 +9,7 @@ class NonceSigner(internal val certificate: Certificate, private val privateKey:
         val signedData = SignedData.sign(
             nonce,
             privateKey,
-            certificate.certificateHolder,
+            certificate,
             encapsulatePlaintext = false
         )
         return signedData.serialize()

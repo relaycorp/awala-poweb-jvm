@@ -34,7 +34,7 @@ class NonceSignerTest {
         val cmsSignedData = SignedData.deserialize(serialization)
 
         assertEquals(1, cmsSignedData.attachedCertificates.size)
-        assertEquals(certificate.certificateHolder, cmsSignedData.attachedCertificates.first())
+        assertEquals(certificate, cmsSignedData.attachedCertificates.first())
     }
 
     @Test
@@ -44,6 +44,6 @@ class NonceSignerTest {
         val signedData = SignedData.deserialize(serialization)
         signedData.verify(nonce)
 
-        assertEquals(certificate.certificateHolder, signedData.signerCertificate)
+        assertEquals(certificate, signedData.signerCertificate)
     }
 }

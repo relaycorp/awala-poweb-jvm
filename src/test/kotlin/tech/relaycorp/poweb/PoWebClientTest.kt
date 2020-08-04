@@ -300,13 +300,13 @@ class PoWebClientTest {
                 val nonce1SignedData = SignedData.deserialize(nonceSignatures[0])
                 nonce1SignedData.verify(nonce)
                 assertEquals(
-                    signer.certificate.certificateHolder,
+                    signer.certificate,
                     nonce1SignedData.signerCertificate
                 )
                 val nonce2SignedData = SignedData.deserialize(nonceSignatures[1])
                 nonce2SignedData.verify(nonce)
                 assertEquals(
-                    signer2.certificate.certificateHolder,
+                    signer2.certificate,
                     nonce2SignedData.signerCertificate
                 )
             }
