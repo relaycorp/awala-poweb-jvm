@@ -10,6 +10,7 @@ class NonceSigner(internal val certificate: Certificate, private val privateKey:
             nonce,
             privateKey,
             certificate,
+            setOf(certificate),
             encapsulatePlaintext = false
         )
         return signedData.serialize()
