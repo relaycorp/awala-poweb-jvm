@@ -28,8 +28,8 @@ import org.junit.jupiter.api.assertThrows
 import tech.relaycorp.poweb.handshake.Challenge
 import tech.relaycorp.poweb.handshake.InvalidMessageException
 import tech.relaycorp.poweb.handshake.NonceSigner
-import tech.relaycorp.relaynet.crypto.SignedData
 import tech.relaycorp.relaynet.issueEndpointCertificate
+import tech.relaycorp.relaynet.messages.control.NonceSignature
 import tech.relaycorp.relaynet.wrappers.generateRSAKeyPair
 import java.time.ZonedDateTime
 import kotlin.test.assertEquals
@@ -297,18 +297,12 @@ class PoWebClientTest {
                 await().until { response is tech.relaycorp.poweb.handshake.Response }
 
                 val nonceSignatures = response!!.nonceSignatures
-                val nonce1SignedData = SignedData.deserialize(nonceSignatures[0])
-                nonce1SignedData.verify(nonce)
-                assertEquals(
-                    signer.certificate,
-                    nonce1SignedData.signerCertificate
-                )
-                val nonce2SignedData = SignedData.deserialize(nonceSignatures[1])
-                nonce2SignedData.verify(nonce)
-                assertEquals(
-                    signer2.certificate,
-                    nonce2SignedData.signerCertificate
-                )
+                val signature1 = NonceSignature.deserialize(nonceSignatures[0])
+                assertEquals(nonce.asList(), signature1.nonce.asList())
+                assertEquals(signer.certificate, signature1.signerCertificate)
+                val signature2 = NonceSignature.deserialize(nonceSignatures[1])
+                assertEquals(nonce.asList(), signature2.nonce.asList())
+                assertEquals(signer2.certificate, signature2.signerCertificate)
             }
         }
 
