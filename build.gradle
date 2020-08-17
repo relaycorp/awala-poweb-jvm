@@ -6,7 +6,7 @@ buildscript {
     ext.protobufGradleVersion = '0.8.12'
     ext.kotlinCoroutinesVersion = '1.3.7'
     ext.ktorVersion = '1.3.2'
-    ext.okhttpVersion = '4.8.0'
+    ext.okhttpVersion = '4.8.1'
 }
 
 plugins {
