@@ -16,7 +16,7 @@ import tech.relaycorp.poweb.handshake.NonceSigner
 import tech.relaycorp.poweb.handshake.Response
 import java.io.Closeable
 
-class PoWebClient internal constructor(
+public class PoWebClient internal constructor(
     internal val hostName: String,
     internal val port: Int,
     internal val useTls: Boolean
@@ -27,7 +27,7 @@ class PoWebClient internal constructor(
     }
 
     @KtorExperimentalAPI
-    override fun close() = ktorClient.close()
+    override fun close(): Unit = ktorClient.close()
 
     private val wsUrl = "ws${if (useTls) "s" else ""}://$hostName:$port"
 
@@ -37,14 +37,14 @@ class PoWebClient internal constructor(
         block: suspend DefaultClientWebSocketSession.() -> Unit
     ) = ktorClient.webSocket("${wsUrl}$path", block = block)
 
-    companion object {
+    public companion object {
         private const val defaultLocalPort = 276
         private const val defaultRemotePort = 443
 
-        fun initLocal(port: Int = defaultLocalPort) =
+        public fun initLocal(port: Int = defaultLocalPort): PoWebClient =
                 PoWebClient("127.0.0.1", port, false)
 
-        fun initRemote(hostName: String, port: Int = defaultRemotePort) =
+        public fun initRemote(hostName: String, port: Int = defaultRemotePort): PoWebClient =
                 PoWebClient(hostName, port, true)
     }
 }
