@@ -4,16 +4,16 @@ import com.google.protobuf.ByteString
 import com.google.protobuf.InvalidProtocolBufferException
 import tech.relaycorp.poweb.internal.protobuf_messages.handshake.Response as PBResponse
 
-class Response(val nonceSignatures: Array<ByteArray>) {
-    fun serialize(): ByteArray {
+public class Response(public val nonceSignatures: Array<ByteArray>) {
+    public fun serialize(): ByteArray {
         val pbResponse = PBResponse.newBuilder()
                 .addAllGatewayNonceSignatures(nonceSignatures.map { ByteString.copyFrom(it) })
                 .build()
         return pbResponse.toByteArray()
     }
 
-    companion object {
-        fun deserialize(serialization: ByteArray): Response {
+    public companion object {
+        public fun deserialize(serialization: ByteArray): Response {
             val pbResponse = try {
                 PBResponse.parseFrom(serialization)
             } catch (_: InvalidProtocolBufferException) {

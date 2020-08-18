@@ -64,6 +64,10 @@ java {
     withSourcesJar()
 }
 
+kotlin {
+    explicitApi = 'strict'
+}
+
 tasks.withType(KotlinCompile).all {
     kotlinOptions {
         jvmTarget = JavaVersion.VERSION_1_8
