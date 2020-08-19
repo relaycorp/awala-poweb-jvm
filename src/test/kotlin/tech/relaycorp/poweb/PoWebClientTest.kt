@@ -14,11 +14,6 @@ import io.ktor.http.fullPath
 import io.ktor.util.InternalAPI
 import io.ktor.util.KtorExperimentalAPI
 import kotlinx.coroutines.runBlocking
-import okhttp3.Response
-import okhttp3.WebSocket
-import okhttp3.WebSocketListener
-import okio.ByteString
-import okio.ByteString.Companion.toByteString
 import org.awaitility.Awaitility.await
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Disabled
@@ -28,6 +23,9 @@ import org.junit.jupiter.api.assertThrows
 import tech.relaycorp.poweb.handshake.Challenge
 import tech.relaycorp.poweb.handshake.InvalidMessageException
 import tech.relaycorp.poweb.handshake.NonceSigner
+import tech.relaycorp.poweb.websocket.CloseConnectionAction
+import tech.relaycorp.poweb.websocket.SendBinaryMessageAction
+import tech.relaycorp.poweb.websocket.SendTextMessageAction
 import tech.relaycorp.relaynet.issueEndpointCertificate
 import tech.relaycorp.relaynet.messages.control.NonceSignature
 import tech.relaycorp.relaynet.wrappers.generateRSAKeyPair
@@ -168,11 +166,7 @@ class PoWebClientTest {
 
         @Test
         fun `Specified block should be called`(): Unit = runBlocking {
-            setWebSocketListener(object : WebSocketListener() {
-                override fun onOpen(webSocket: WebSocket, response: Response) {
-                    webSocket.close(1000, "No-op")
-                }
-            })
+            setListenerActions(CloseConnectionAction(1000, "No-op"))
             val client = PoWebClient.initLocal(mockWebServer.port)
 
             var wasBlockRun = false
@@ -208,7 +202,7 @@ class PoWebClientTest {
     @Nested
     inner class Handshake : WebSocketTestCase() {
         private val nonce = "nonce".toByteArray()
-        private val challengeSerialized = Challenge(nonce).serialize().toByteString()
+        private val challengeSerialized = Challenge(nonce).serialize()
 
         // Compute client on demand because getting the server port will start the server
         private val client by lazy { PoWebClient.initLocal(mockWebServer.port) }
@@ -220,18 +214,7 @@ class PoWebClientTest {
 
         @Test
         fun `Getting an invalid challenge should result in an exception`() {
-            var closeCode: Int? = null
-
-            setWebSocketListener(object : WebSocketListener() {
-                override fun onOpen(webSocket: WebSocket, response: Response) {
-                    webSocket.send("Not a valid challenge")
-                }
-
-                override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
-                    closeCode = code
-                    super.onClosing(webSocket, code, reason)
-                }
-            })
+            setListenerActions(SendTextMessageAction("Not a valid challenge"))
 
             client.use {
                 val exception = assertThrows<PoWebException> {
@@ -241,23 +224,13 @@ class PoWebClientTest {
                 assertEquals("Server sent an invalid handshake challenge", exception.message)
                 assertTrue(exception.cause is InvalidMessageException)
             }
-            await().until { closeCode is Int }
-            assertEquals(CloseReason.Codes.VIOLATED_POLICY.code.toInt(), closeCode)
+            await().until { listener!!.closingCode is Int }
+            assertEquals(CloseReason.Codes.VIOLATED_POLICY.code.toInt(), listener!!.closingCode)
         }
 
         @Test
         fun `At least one nonce signer should be required`() {
-            var closeCode: Int? = null
-
-            setWebSocketListener(object : WebSocketListener() {
-                override fun onOpen(webSocket: WebSocket, response: Response) {
-                    webSocket.send(challengeSerialized)
-                }
-
-                override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
-                    closeCode = code
-                }
-            })
+            setListenerActions(SendBinaryMessageAction(challengeSerialized))
 
             client.use {
                 val exception = assertThrows<PoWebException> {
@@ -268,35 +241,28 @@ class PoWebClientTest {
 
                 assertEquals("At least one nonce signer must be specified", exception.message)
             }
-            await().until { closeCode is Int }
-            assertEquals(CloseReason.Codes.NORMAL.code.toInt(), closeCode)
+            await().until { listener!!.closingCode is Int }
+            assertEquals(CloseReason.Codes.NORMAL.code.toInt(), listener!!.closingCode)
         }
 
         @Test
         fun `Challenge nonce should be signed with each signer`() {
-            var response: tech.relaycorp.poweb.handshake.Response? = null
-
-            setWebSocketListener(object : WebSocketListener() {
-                override fun onOpen(webSocket: WebSocket, response: Response) {
-                    webSocket.send(challengeSerialized)
-                }
-
-                override fun onMessage(webSocket: WebSocket, bytes: ByteString) {
-                    response = tech.relaycorp.poweb.handshake.Response.deserialize(
-                            bytes.toByteArray()
-                    )
-                    webSocket.close(1000, "")
-                }
-            })
+            setListenerActions(
+                    SendBinaryMessageAction(challengeSerialized),
+                    CloseConnectionAction(1000)
+            )
 
             val signer2 = generateDummySigner()
 
             client.use {
                 runBlocking { client.wsConnect("/") { handshake(arrayOf(signer, signer2)) } }
 
-                await().until { response is tech.relaycorp.poweb.handshake.Response }
+                await().until { 0 < listener!!.receivedMessages.size }
 
-                val nonceSignatures = response!!.nonceSignatures
+                val response = tech.relaycorp.poweb.handshake.Response.deserialize(
+                        listener!!.receivedMessages.first()
+                )
+                val nonceSignatures = response.nonceSignatures
                 val signature1 = NonceSignature.deserialize(nonceSignatures[0])
                 assertEquals(nonce.asList(), signature1.nonce.asList())
                 assertEquals(signer.certificate, signature1.signerCertificate)
