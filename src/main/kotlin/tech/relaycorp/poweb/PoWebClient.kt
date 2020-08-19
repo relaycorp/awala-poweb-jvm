@@ -14,6 +14,7 @@ import io.ktor.http.cio.websocket.readBytes
 import io.ktor.util.KtorExperimentalAPI
 import kotlinx.coroutines.channels.ClosedReceiveChannelException
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.flow
 import tech.relaycorp.poweb.handshake.Challenge
 import tech.relaycorp.poweb.handshake.InvalidMessageException
@@ -40,19 +41,31 @@ public class PoWebClient internal constructor(
     ): Flow<ParcelCollector> = flow {
         wsConnect("/TODO") {
             handshake(nonceSigners)
-            try {
-                for (frame in incoming) {
-                    val delivery = ParcelDelivery.deserialize(frame.readBytes())
-                    emit(ParcelCollector(delivery.parcelSerialized))
+            collectAndAckParcels(this, this@flow)
+        }
+    }
+
+    @Throws(PoWebException::class)
+    private suspend fun collectAndAckParcels(
+        webSocketSession: DefaultClientWebSocketSession,
+        flowCollector: FlowCollector<ParcelCollector>
+    ) {
+        try {
+            while (true) { // TODO: Replace with `for (frame in incoming)`
+                val frame = webSocketSession.incoming.receive()
+                val delivery = ParcelDelivery.deserialize(frame.readBytes())
+                val collector = ParcelCollector(delivery.parcelSerialized) {
+                    webSocketSession.outgoing.send(Frame.Text(delivery.deliveryId))
                 }
-            } catch (exc: ClosedReceiveChannelException) {
-                val reason = closeReason.await()
-                if (reason != null && reason.code != CloseReason.Codes.NORMAL.code) {
-                    throw PoWebException(
-                        "Server closed the connection unexpectedly " +
-                            "(code: ${reason.code}, reason: ${reason.message})"
-                    )
-                }
+                flowCollector.emit(collector)
+            }
+        } catch (exc: ClosedReceiveChannelException) {
+            val reason = webSocketSession.closeReason.await()
+            if (reason != null && reason.code != CloseReason.Codes.NORMAL.code) {
+                throw PoWebException(
+                    "Server closed the connection unexpectedly " +
+                        "(code: ${reason.code}, reason: ${reason.message})"
+                )
             }
         }
     }

@@ -1,11 +1,9 @@
-package tech.relaycorp.poweb
+package tech.relaycorp.poweb.websocket
 
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
-import tech.relaycorp.poweb.websocket.MockWebSocketAction
-import tech.relaycorp.poweb.websocket.MockWebSocketListener
 import java.io.IOException
 
 open class WebSocketTestCase(private val autoStartServer: Boolean = true) {

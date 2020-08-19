@@ -1,7 +1,7 @@
 package tech.relaycorp.poweb
 
-public class ParcelCollector(
-    public val parcelSerialized: ByteArray
-) {
-    public suspend fun ack(): Unit = TODO()
-}
+@Suppress("ArrayInDataClass")
+public data class ParcelCollector(
+    public val parcelSerialized: ByteArray,
+    public val ack: suspend () -> Unit
+)
