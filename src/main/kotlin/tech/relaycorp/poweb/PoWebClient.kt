@@ -5,47 +5,77 @@ import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.features.websocket.DefaultClientWebSocketSession
 import io.ktor.client.features.websocket.WebSockets
 import io.ktor.client.features.websocket.webSocket
+import io.ktor.client.request.url
+import io.ktor.http.HttpMethod
 import io.ktor.http.cio.websocket.CloseReason
 import io.ktor.http.cio.websocket.Frame
 import io.ktor.http.cio.websocket.close
 import io.ktor.http.cio.websocket.readBytes
 import io.ktor.util.KtorExperimentalAPI
+import kotlinx.coroutines.channels.ClosedReceiveChannelException
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 import tech.relaycorp.poweb.handshake.Challenge
 import tech.relaycorp.poweb.handshake.InvalidMessageException
 import tech.relaycorp.poweb.handshake.NonceSigner
 import tech.relaycorp.poweb.handshake.Response
+import tech.relaycorp.relaynet.messages.control.ParcelDelivery
 import java.io.Closeable
 
+@KtorExperimentalAPI
 public class PoWebClient internal constructor(
     internal val hostName: String,
     internal val port: Int,
     internal val useTls: Boolean
 ) : Closeable {
-    @KtorExperimentalAPI
     internal var ktorClient = HttpClient(OkHttp) {
         install(WebSockets)
     }
 
-    @KtorExperimentalAPI
     override fun close(): Unit = ktorClient.close()
 
-    private val wsUrl = "ws${if (useTls) "s" else ""}://$hostName:$port"
+    @Throws(PoWebException::class)
+    public suspend fun collectParcels(
+        nonceSigners: Array<NonceSigner>
+    ): Flow<ParcelCollector> = flow {
+        wsConnect("/TODO") {
+            handshake(nonceSigners)
+            try {
+                for (frame in incoming) {
+                    val delivery = ParcelDelivery.deserialize(frame.readBytes())
+                    emit(ParcelCollector(delivery.parcelSerialized))
+                }
+            } catch (exc: ClosedReceiveChannelException) {
+                val reason = closeReason.await()
+                if (reason != null && reason.code != CloseReason.Codes.NORMAL.code) {
+                    throw PoWebException(
+                        "Server closed the connection unexpectedly " +
+                            "(code: ${reason.code}, reason: ${reason.message})"
+                    )
+                }
+            }
+        }
+    }
 
-    @KtorExperimentalAPI
     internal suspend fun wsConnect(
         path: String,
         block: suspend DefaultClientWebSocketSession.() -> Unit
-    ) = ktorClient.webSocket("${wsUrl}$path", block = block)
+    ) = ktorClient.webSocket(
+        HttpMethod.Get,
+        hostName, port, path,
+        { url(if (useTls) "wss" else "ws", hostName, port, path) },
+        block
+    )
 
     public companion object {
         private const val defaultLocalPort = 276
         private const val defaultRemotePort = 443
 
         public fun initLocal(port: Int = defaultLocalPort): PoWebClient =
-                PoWebClient("127.0.0.1", port, false)
+            PoWebClient("127.0.0.1", port, false)
 
         public fun initRemote(hostName: String, port: Int = defaultRemotePort): PoWebClient =
-                PoWebClient(hostName, port, true)
+            PoWebClient(hostName, port, true)
     }
 }
 
@@ -54,7 +84,11 @@ internal suspend fun DefaultClientWebSocketSession.handshake(nonceSigners: Array
     if (nonceSigners.isEmpty()) {
         throw PoWebException("At least one nonce signer must be specified")
     }
-    val challengeRaw = incoming.receive()
+    val challengeRaw = try {
+        incoming.receive()
+    } catch (exc: ClosedReceiveChannelException) {
+        throw PoWebException("Server closed the connection before the handshake", exc)
+    }
     val challenge = try {
         Challenge.deserialize(challengeRaw.readBytes())
     } catch (exc: InvalidMessageException) {
