@@ -16,7 +16,6 @@ import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runBlockingTest
-import org.awaitility.Awaitility.await
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
@@ -273,7 +272,8 @@ class PoWebClientTest {
                 assertEquals("Server sent an invalid handshake challenge", exception.message)
                 assertTrue(exception.cause is InvalidChallengeException)
             }
-            await().until { listener!!.closingCode != null }
+
+            awaitForConnectionClosure()
             assertEquals(CloseReason.Codes.VIOLATED_POLICY, listener!!.closingCode)
         }
 
@@ -288,7 +288,8 @@ class PoWebClientTest {
 
                 assertEquals("At least one nonce signer must be specified", exception.message)
             }
-            await().until { listener!!.closingCode != null }
+
+            awaitForConnectionClosure()
             assertEquals(CloseReason.Codes.NORMAL, listener!!.closingCode)
         }
 
@@ -299,21 +300,22 @@ class PoWebClientTest {
             val signer2 = generateDummySigner()
 
             client.use {
-                runBlocking { client.collectParcels(arrayOf(signer, signer2)).collect {} }
-
-                await().until { 0 < listener!!.receivedMessages.size }
-
-                val response = tech.relaycorp.poweb.handshake.Response.deserialize(
-                    listener!!.receivedMessages.first()
-                )
-                val nonceSignatures = response.nonceSignatures
-                val signature1 = NonceSignature.deserialize(nonceSignatures[0])
-                assertEquals(nonce.asList(), signature1.nonce.asList())
-                assertEquals(signer.certificate, signature1.signerCertificate)
-                val signature2 = NonceSignature.deserialize(nonceSignatures[1])
-                assertEquals(nonce.asList(), signature2.nonce.asList())
-                assertEquals(signer2.certificate, signature2.signerCertificate)
+                runBlocking { client.collectParcels(arrayOf(signer, signer2)).toList() }
             }
+
+            awaitForConnectionClosure()
+
+            assertEquals(1, listener!!.receivedMessages.size)
+            val response = tech.relaycorp.poweb.handshake.Response.deserialize(
+                listener!!.receivedMessages.first()
+            )
+            val nonceSignatures = response.nonceSignatures
+            val signature1 = NonceSignature.deserialize(nonceSignatures[0])
+            assertEquals(nonce.asList(), signature1.nonce.asList())
+            assertEquals(signer.certificate, signature1.signerCertificate)
+            val signature2 = NonceSignature.deserialize(nonceSignatures[1])
+            assertEquals(nonce.asList(), signature2.nonce.asList())
+            assertEquals(signer2.certificate, signature2.signerCertificate)
         }
 
         @Test
@@ -325,6 +327,7 @@ class PoWebClientTest {
                     client.collectParcels(arrayOf(signer)).collect { }
                 }
 
+                awaitForConnectionClosure()
                 assertEquals(CloseReason.Codes.NORMAL, listener!!.closingCode)
             }
 
@@ -364,8 +367,9 @@ class PoWebClientTest {
                 assertEquals(1, deliveries.size)
             }
 
-            assertFalse(undeliveredAction.wasRun)
+            awaitForConnectionClosure()
             assertEquals(CloseReason.Codes.NORMAL, listener!!.closingCode)
+            assertFalse(undeliveredAction.wasRun)
         }
 
         @Test
@@ -394,10 +398,11 @@ class PoWebClientTest {
                     // TODO:
                     exception.cause is tech.relaycorp.relaynet.messages.InvalidMessageException
                 )
-
-                assertEquals(CloseReason.Codes.VIOLATED_POLICY, listener!!.closingCode!!)
-                assertEquals("Invalid parcel delivery", listener!!.closingReason!!)
             }
+
+            awaitForConnectionClosure()
+            assertEquals(CloseReason.Codes.VIOLATED_POLICY, listener!!.closingCode!!)
+            assertEquals("Invalid parcel delivery", listener!!.closingReason!!)
         }
 
         @Test
@@ -461,6 +466,7 @@ class PoWebClientTest {
                 client.collectParcels(arrayOf(signer)).collect { it.ack() }
             }
 
+            awaitForConnectionClosure()
             // The server should've got two messages: The handshake response and the ACK
             assertEquals(2, listener!!.receivedMessages.size)
             assertEquals(
@@ -494,6 +500,7 @@ class PoWebClientTest {
                 }
             }
 
+            awaitForConnectionClosure()
             // The server should've got two messages: The handshake response and the first ACK
             assertEquals(2, listener!!.receivedMessages.size)
             assertEquals(

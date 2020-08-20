@@ -12,6 +12,7 @@ class MockWebSocketListener(
     private val actions: MutableList<MockWebSocketAction>,
     private val mockWebServer: MockWebServer
 ) : WebSocketListener() {
+    var connectionOpen = false
     var connected = false
 
     val receivedMessages = mutableListOf<ByteArray>()
@@ -21,6 +22,7 @@ class MockWebSocketListener(
 
     override fun onOpen(webSocket: WebSocket, response: Response) {
         assertFalse(connected, "Listener cannot be reused")
+        connectionOpen = true
         connected = true
 
         runNextAction(webSocket)
@@ -46,5 +48,7 @@ class MockWebSocketListener(
     override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
         closingCode = CloseReason.Codes.byCode(code.toShort())
         closingReason = reason
+
+        connectionOpen = false
     }
 }
