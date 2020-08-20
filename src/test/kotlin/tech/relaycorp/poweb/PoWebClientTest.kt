@@ -146,7 +146,7 @@ class PoWebClientTest {
             val client = PoWebClient.initLocal(mockWebServer.port - 1)
 
             client.use {
-                val exception = assertThrows<PoWebException> {
+                val exception = assertThrows<ServerConnectionException> {
                     runBlocking { client.wsConnect(path) {} }
                 }
 
@@ -161,7 +161,7 @@ class PoWebClientTest {
             setListenerActions(ServerShutdownAction())
 
             client.use {
-                val exception = assertThrows<PoWebException> {
+                val exception = assertThrows<ServerConnectionException> {
                     runBlocking {
                         client.wsConnect(path) {
                             incoming.receive()
@@ -266,7 +266,7 @@ class PoWebClientTest {
             setListenerActions(SendTextMessageAction("Not a valid challenge"))
 
             client.use {
-                val exception = assertThrows<PoWebException> {
+                val exception = assertThrows<InvalidServerMessageException> {
                     runBlocking { client.collectParcels(arrayOf(signer)).first() }
                 }
 
@@ -283,7 +283,7 @@ class PoWebClientTest {
             setListenerActions(ChallengeAction(nonce))
 
             client.use {
-                val exception = assertThrows<PoWebException> {
+                val exception = assertThrows<NonceSignerException> {
                     runBlocking { client.collectParcels(emptyArray()).first() }
                 }
 
@@ -340,7 +340,7 @@ class PoWebClientTest {
                 setListenerActions(ChallengeAction(nonce), CloseConnectionAction(code, reason))
 
                 client.use {
-                    val exception = assertThrows<PoWebException> {
+                    val exception = assertThrows<ServerConnectionException> {
                         runBlocking { client.collectParcels(arrayOf(signer)).toList() }
                     }
 
@@ -390,7 +390,7 @@ class PoWebClientTest {
             setListenerActions(ChallengeAction(nonce), SendTextMessageAction("invalid"))
 
             client.use {
-                val exception = assertThrows<PoWebException> {
+                val exception = assertThrows<InvalidServerMessageException> {
                     runBlocking { client.collectParcels(arrayOf(signer)).toList() }
                 }
 

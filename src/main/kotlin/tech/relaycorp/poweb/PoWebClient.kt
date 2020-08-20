@@ -29,6 +29,8 @@ import java.net.ConnectException
  * @param hostName The IP address or domain for the PoWeb server
  * @param port The port for the PoWeb server
  * @param useTls Whether the PoWeb server uses TLS
+ *
+ * The underlying connection is created lazily.
  */
 @KtorExperimentalAPI
 public class PoWebClient internal constructor(
@@ -52,7 +54,11 @@ public class PoWebClient internal constructor(
      *
      * @param nonceSigners The nonce signers for each node whose parcels should be collected
      */
-    @Throws(PoWebException::class)
+    @Throws(
+        ServerConnectionException::class,
+        InvalidServerMessageException::class,
+        NonceSignerException::class
+    )
     public suspend fun collectParcels(
         nonceSigners: Array<NonceSigner>
     ): Flow<ParcelCollector> = flow {
@@ -64,7 +70,7 @@ public class PoWebClient internal constructor(
             // all incoming messages indefinitely.
             val reason = closeReason.await()!!
             if (reason.code != CloseReason.Codes.NORMAL.code) {
-                throw PoWebException(
+                throw ServerConnectionException(
                     "Server closed the connection unexpectedly " +
                         "(code: ${reason.code}, reason: ${reason.message})"
                 )
@@ -84,7 +90,7 @@ public class PoWebClient internal constructor(
                 webSocketSession.close(
                     CloseReason(CloseReason.Codes.VIOLATED_POLICY, "Invalid parcel delivery")
                 )
-                throw PoWebException("Received invalid message from server", exc)
+                throw InvalidServerMessageException("Received invalid message from server", exc)
             }
             val collector = ParcelCollector(delivery.parcelSerialized) {
                 webSocketSession.outgoing.send(Frame.Text(delivery.deliveryId))
@@ -99,9 +105,9 @@ public class PoWebClient internal constructor(
     ) = try {
         ktorClient.webSocket("$wsScheme://$hostName:$port$path", block = block)
     } catch (exc: ConnectException) {
-        throw PoWebException("Server is unreachable", exc)
+        throw ServerConnectionException("Server is unreachable", exc)
     } catch (exc: EOFException) {
-        throw PoWebException("Connection was closed abruptly", exc)
+        throw ServerConnectionException("Connection was closed abruptly", exc)
     }
 
     public companion object {
@@ -133,14 +139,14 @@ public class PoWebClient internal constructor(
 @Throws(PoWebException::class)
 internal suspend fun DefaultClientWebSocketSession.handshake(nonceSigners: Array<NonceSigner>) {
     if (nonceSigners.isEmpty()) {
-        throw PoWebException("At least one nonce signer must be specified")
+        throw NonceSignerException("At least one nonce signer must be specified")
     }
     val challengeRaw = incoming.receive()
     val challenge = try {
         Challenge.deserialize(challengeRaw.readBytes())
     } catch (exc: InvalidChallengeException) {
         close(CloseReason(CloseReason.Codes.VIOLATED_POLICY, ""))
-        throw PoWebException("Server sent an invalid handshake challenge", exc)
+        throw InvalidServerMessageException("Server sent an invalid handshake challenge", exc)
     }
     val nonceSignatures = nonceSigners.map { it.sign(challenge.nonce) }.toTypedArray()
     val response = Response(nonceSignatures)
