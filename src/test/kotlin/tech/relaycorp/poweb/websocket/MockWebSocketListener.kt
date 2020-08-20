@@ -15,7 +15,7 @@ class MockWebSocketListener(
     val receivedMessages = mutableListOf<ByteArray>()
 
     internal var closingCode: CloseReason.Codes? = null
-    private var closingReason: String? = null
+    internal var closingReason: String? = null
 
     override fun onOpen(webSocket: WebSocket, response: Response) {
         request = webSocket.request()

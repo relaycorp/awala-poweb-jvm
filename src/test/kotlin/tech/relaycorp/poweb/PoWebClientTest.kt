@@ -12,14 +12,11 @@ import io.ktor.http.URLProtocol
 import io.ktor.http.cio.websocket.CloseReason
 import io.ktor.util.InternalAPI
 import io.ktor.util.KtorExperimentalAPI
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.channels.ClosedReceiveChannelException
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.test.runBlockingTest
 import org.awaitility.Awaitility.await
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Nested
@@ -36,6 +33,7 @@ import tech.relaycorp.poweb.websocket.WebSocketTestCase
 import tech.relaycorp.relaynet.issueEndpointCertificate
 import tech.relaycorp.relaynet.messages.control.NonceSignature
 import tech.relaycorp.relaynet.wrappers.generateRSAKeyPair
+import java.net.ConnectException
 import java.nio.charset.Charset
 import java.time.ZonedDateTime
 import kotlin.test.assertEquals
@@ -139,6 +137,21 @@ class PoWebClientTest {
         private val path = "/v1/the-endpoint"
 
         @Test
+        fun `Failing to connect to the server should result in an exception`() {
+            // Connect to an invalid port
+            val client = PoWebClient.initLocal(mockWebServer.port - 1)
+
+            client.use {
+                val exception = assertThrows<PoWebException> {
+                    runBlocking { client.wsConnect(path) {} }
+                }
+
+                assertEquals("Server is unreachable", exception.message)
+                assertTrue(exception.cause is ConnectException)
+            }
+        }
+
+        @Test
         fun `Client should use WS if TLS is not required`() {
             val wsRequest = wsConnect(false) {}
 
@@ -218,7 +231,6 @@ class PoWebClientTest {
     }
 
     @Nested
-    @ExperimentalCoroutinesApi
     inner class CollectParcels : WebSocketTestCase() {
         private val nonce = "nonce".toByteArray()
 
@@ -242,20 +254,6 @@ class PoWebClientTest {
             }
 
             assertEquals("/v1/parcel-collection", listener!!.request!!.url.encodedPath)
-        }
-
-        @Test
-        fun `Getting a closing frame before the handshake should result in an exception`() {
-            setListenerActions(CloseConnectionAction())
-
-            client.use {
-                val exception = assertThrows<PoWebException> {
-                    runBlocking { client.collectParcels(arrayOf(signer)).first() }
-                }
-
-                assertEquals("Server closed the connection before the handshake", exception.message)
-                assertTrue(exception.cause is ClosedReceiveChannelException)
-            }
         }
 
         @Test
@@ -383,12 +381,17 @@ class PoWebClientTest {
 
             client.use {
                 val exception = assertThrows<PoWebException> {
-                    runBlockingTest { client.collectParcels(arrayOf(signer)).toList() }
+                    runBlocking { client.collectParcels(arrayOf(signer)).toList() }
                 }
 
                 assertEquals("Received invalid message from server", exception.message)
+                assertTrue(
+                    // TODO:
+                    exception.cause is tech.relaycorp.relaynet.messages.InvalidMessageException
+                )
 
                 assertEquals(CloseReason.Codes.VIOLATED_POLICY, listener!!.closingCode!!)
+                assertEquals("Invalid parcel delivery", listener!!.closingReason!!)
             }
         }
 

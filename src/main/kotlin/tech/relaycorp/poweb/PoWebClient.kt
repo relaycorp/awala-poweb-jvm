@@ -12,16 +12,16 @@ import io.ktor.http.cio.websocket.Frame
 import io.ktor.http.cio.websocket.close
 import io.ktor.http.cio.websocket.readBytes
 import io.ktor.util.KtorExperimentalAPI
-import kotlinx.coroutines.channels.ClosedReceiveChannelException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.flow
 import tech.relaycorp.poweb.handshake.Challenge
-import tech.relaycorp.poweb.handshake.InvalidMessageException
 import tech.relaycorp.poweb.handshake.NonceSigner
 import tech.relaycorp.poweb.handshake.Response
+import tech.relaycorp.relaynet.messages.InvalidMessageException
 import tech.relaycorp.relaynet.messages.control.ParcelDelivery
 import java.io.Closeable
+import java.net.ConnectException
 
 @KtorExperimentalAPI
 public class PoWebClient internal constructor(
@@ -42,25 +42,8 @@ public class PoWebClient internal constructor(
         wsConnect("/TODO") {
             handshake(nonceSigners)
             collectAndAckParcels(this, this@flow)
-        }
-    }
 
-    @Throws(PoWebException::class)
-    private suspend fun collectAndAckParcels(
-        webSocketSession: DefaultClientWebSocketSession,
-        flowCollector: FlowCollector<ParcelCollector>
-    ) {
-        try {
-            while (true) { // TODO: Replace with `for (frame in incoming)`
-                val frame = webSocketSession.incoming.receive()
-                val delivery = ParcelDelivery.deserialize(frame.readBytes())
-                val collector = ParcelCollector(delivery.parcelSerialized) {
-                    webSocketSession.outgoing.send(Frame.Text(delivery.deliveryId))
-                }
-                flowCollector.emit(collector)
-            }
-        } catch (exc: ClosedReceiveChannelException) {
-            val reason = webSocketSession.closeReason.await()
+            val reason = closeReason.await()
             if (reason != null && reason.code != CloseReason.Codes.NORMAL.code) {
                 throw PoWebException(
                     "Server closed the connection unexpectedly " +
@@ -70,15 +53,42 @@ public class PoWebClient internal constructor(
         }
     }
 
+    @Throws(PoWebException::class)
+    private suspend fun collectAndAckParcels(
+        webSocketSession: DefaultClientWebSocketSession,
+        flowCollector: FlowCollector<ParcelCollector>
+    ) {
+        for (frame in webSocketSession.incoming) {
+            val delivery = try {
+                ParcelDelivery.deserialize(frame.readBytes())
+            } catch (exc: InvalidMessageException) {
+                webSocketSession.close(
+                    CloseReason(CloseReason.Codes.VIOLATED_POLICY, "Invalid parcel delivery")
+                )
+                throw PoWebException("Received invalid message from server", exc)
+            }
+            val collector = ParcelCollector(delivery.parcelSerialized) {
+                webSocketSession.outgoing.send(Frame.Text(delivery.deliveryId))
+            }
+            flowCollector.emit(collector)
+        }
+    }
+
     internal suspend fun wsConnect(
         path: String,
         block: suspend DefaultClientWebSocketSession.() -> Unit
-    ) = ktorClient.webSocket(
-        HttpMethod.Get,
-        hostName, port, path,
-        { url(if (useTls) "wss" else "ws", hostName, port, path) },
-        block
-    )
+    ) = try {
+        ktorClient.webSocket(
+            HttpMethod.Get,
+            hostName,
+            port,
+            path,
+            { url(if (useTls) "wss" else "ws", hostName, port, path) },
+            block
+        )
+    } catch (exc: ConnectException) {
+        throw PoWebException("Server is unreachable", exc)
+    }
 
     public companion object {
         private const val defaultLocalPort = 276
@@ -97,14 +107,10 @@ internal suspend fun DefaultClientWebSocketSession.handshake(nonceSigners: Array
     if (nonceSigners.isEmpty()) {
         throw PoWebException("At least one nonce signer must be specified")
     }
-    val challengeRaw = try {
-        incoming.receive()
-    } catch (exc: ClosedReceiveChannelException) {
-        throw PoWebException("Server closed the connection before the handshake", exc)
-    }
+    val challengeRaw = incoming.receive()
     val challenge = try {
         Challenge.deserialize(challengeRaw.readBytes())
-    } catch (exc: InvalidMessageException) {
+    } catch (exc: tech.relaycorp.poweb.handshake.InvalidMessageException) { // TODO:
         close(CloseReason(CloseReason.Codes.VIOLATED_POLICY, ""))
         throw PoWebException("Server sent an invalid handshake challenge", exc)
     }
