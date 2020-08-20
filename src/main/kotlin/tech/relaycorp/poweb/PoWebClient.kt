@@ -39,7 +39,7 @@ public class PoWebClient internal constructor(
     public suspend fun collectParcels(
         nonceSigners: Array<NonceSigner>
     ): Flow<ParcelCollector> = flow {
-        wsConnect("/TODO") {
+        wsConnect("/v1/parcel-collection") {
             handshake(nonceSigners)
             collectAndAckParcels(this, this@flow)
 

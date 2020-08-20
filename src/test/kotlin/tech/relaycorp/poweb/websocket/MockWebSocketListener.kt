@@ -1,16 +1,16 @@
 package tech.relaycorp.poweb.websocket
 
 import io.ktor.http.cio.websocket.CloseReason
-import okhttp3.Request
 import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import okio.ByteString
+import kotlin.test.assertFalse
 
 class MockWebSocketListener(
     private val actions: MutableList<MockWebSocketAction>
 ) : WebSocketListener() {
-    var request: Request? = null
+    var connected = false
 
     val receivedMessages = mutableListOf<ByteArray>()
 
@@ -18,7 +18,8 @@ class MockWebSocketListener(
     internal var closingReason: String? = null
 
     override fun onOpen(webSocket: WebSocket, response: Response) {
-        request = webSocket.request()
+        assertFalse(connected, "Listener cannot be reused")
+        connected = true
 
         runNextAction(webSocket)
     }

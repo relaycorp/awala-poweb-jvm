@@ -2,11 +2,8 @@ package tech.relaycorp.poweb
 
 import com.nhaarman.mockitokotlin2.spy
 import com.nhaarman.mockitokotlin2.verify
-import io.ktor.client.HttpClient
-import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.okhttp.OkHttpEngine
 import io.ktor.client.features.websocket.DefaultClientWebSocketSession
-import io.ktor.client.features.websocket.WebSockets
 import io.ktor.client.request.HttpRequestData
 import io.ktor.http.URLProtocol
 import io.ktor.http.cio.websocket.CloseReason
@@ -17,6 +14,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runBlockingTest
 import org.awaitility.Awaitility.await
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Nested
@@ -27,6 +25,7 @@ import tech.relaycorp.poweb.handshake.NonceSigner
 import tech.relaycorp.poweb.websocket.ActionSequence
 import tech.relaycorp.poweb.websocket.ChallengeAction
 import tech.relaycorp.poweb.websocket.CloseConnectionAction
+import tech.relaycorp.poweb.websocket.MockKtorClientManager
 import tech.relaycorp.poweb.websocket.ParcelDeliveryAction
 import tech.relaycorp.poweb.websocket.SendTextMessageAction
 import tech.relaycorp.poweb.websocket.WebSocketTestCase
@@ -38,7 +37,6 @@ import java.nio.charset.Charset
 import java.time.ZonedDateTime
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
-import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 @KtorExperimentalAPI
@@ -152,15 +150,15 @@ class PoWebClientTest {
         }
 
         @Test
-        fun `Client should use WS if TLS is not required`() {
-            val wsRequest = wsConnect(false) {}
+        fun `Client should use WS if TLS is not required`() = runBlockingTest {
+            val wsRequest = mockWSConnect(false) {}
 
             assertEquals(URLProtocol.WS, wsRequest.url.protocol)
         }
 
         @Test
-        fun `Client should use WSS if TLS is required`() {
-            val wsRequest = wsConnect(true) {}
+        fun `Client should use WSS if TLS is required`() = runBlockingTest {
+            val wsRequest = mockWSConnect(true) {}
 
             assertEquals(URLProtocol.WSS, wsRequest.url.protocol)
         }
@@ -172,27 +170,14 @@ class PoWebClientTest {
 
             client.wsConnect(path) {}
 
-            assertNotNull(listener!!.request)
-        }
-
-        @Test
-        fun `Underlying HTTP request should use GET`() = runBlocking {
-            setListenerActions(CloseConnectionAction())
-            val client = PoWebClient.initLocal(mockWebServer.port)
-
-            client.wsConnect(path) {}
-
-            assertEquals("GET", listener!!.request!!.method)
+            assertTrue(listener!!.connected)
         }
 
         @Test
         fun `Client should connect to specified path`() = runBlocking {
-            setListenerActions(CloseConnectionAction())
-            val client = PoWebClient.initLocal(mockWebServer.port)
+            val wsRequest = mockWSConnect {}
 
-            client.wsConnect(path) {}
-
-            assertEquals(path, listener!!.request!!.url.encodedPath)
+            assertEquals(path, wsRequest.url.encodedPath)
         }
 
         @Test
@@ -206,27 +191,19 @@ class PoWebClientTest {
             assertTrue(wasBlockRun)
         }
 
-        private fun wsConnect(
+        private suspend fun mockWSConnect(
             useTls: Boolean = false,
             block: suspend DefaultClientWebSocketSession.() -> Unit
         ): HttpRequestData {
             val client = PoWebClient(hostName, port, useTls)
-            var connectionRequest: HttpRequestData? = null
-            client.ktorClient = HttpClient(MockEngine) {
-                install(WebSockets)
+            val ktorClientManager = MockKtorClientManager()
+            client.ktorClient = ktorClientManager.ktorClient
 
-                engine {
-                    addHandler { request ->
-                        connectionRequest = request
-                        error("Nothing to see here")
-                    }
-                }
+            ktorClientManager.useClient {
+                client.wsConnect(path, block)
             }
 
-            assertThrows<IllegalStateException> { runBlocking { client.wsConnect(path, block) } }
-            assertTrue(connectionRequest is HttpRequestData)
-
-            return connectionRequest as HttpRequestData
+            return ktorClientManager.request
         }
     }
 
@@ -247,13 +224,15 @@ class PoWebClientTest {
 
         @Test
         fun `Request should be made to the parcel collection endpoint`() = runBlocking {
-            setListenerActions(ChallengeAction(nonce), CloseConnectionAction())
+            val mockClient = PoWebClient.initLocal()
+            val ktorClientManager = MockKtorClientManager()
+            mockClient.ktorClient = ktorClientManager.ktorClient
 
-            client.use {
-                client.collectParcels(arrayOf(signer)).collect { }
+            ktorClientManager.useClient {
+                mockClient.collectParcels(arrayOf(signer)).toList()
             }
 
-            assertEquals("/v1/parcel-collection", listener!!.request!!.url.encodedPath)
+            assertEquals("/v1/parcel-collection", ktorClientManager.request.url.encodedPath)
         }
 
         @Test
