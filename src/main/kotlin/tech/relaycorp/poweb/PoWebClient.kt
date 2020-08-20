@@ -5,8 +5,6 @@ import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.features.websocket.DefaultClientWebSocketSession
 import io.ktor.client.features.websocket.WebSockets
 import io.ktor.client.features.websocket.webSocket
-import io.ktor.client.request.url
-import io.ktor.http.HttpMethod
 import io.ktor.http.cio.websocket.CloseReason
 import io.ktor.http.cio.websocket.Frame
 import io.ktor.http.cio.websocket.close
@@ -40,6 +38,8 @@ public class PoWebClient internal constructor(
     internal var ktorClient = HttpClient(OkHttp) {
         install(WebSockets)
     }
+
+    private val wsScheme = if (useTls) "wss" else "ws"
 
     /**
      * Close the underlying connection to the server (if any).
@@ -96,14 +96,8 @@ public class PoWebClient internal constructor(
         path: String,
         block: suspend DefaultClientWebSocketSession.() -> Unit
     ) = try {
-        ktorClient.webSocket(
-            HttpMethod.Get,
-            hostName,
-            port,
-            path,
-            { url(if (useTls) "wss" else "ws", hostName, port, path) },
-            block
-        )
+        val wsURL = "$wsScheme://$hostName:$port$path"
+        ktorClient.webSocket(wsURL, block = block)
     } catch (exc: ConnectException) {
         throw PoWebException("Server is unreachable", exc)
     } catch (exc: EOFException) {
