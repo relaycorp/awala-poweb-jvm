@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.flow
 import tech.relaycorp.poweb.handshake.Challenge
+import tech.relaycorp.poweb.handshake.InvalidChallengeException
 import tech.relaycorp.poweb.handshake.NonceSigner
 import tech.relaycorp.poweb.handshake.Response
 import tech.relaycorp.relaynet.messages.InvalidMessageException
@@ -137,7 +138,7 @@ internal suspend fun DefaultClientWebSocketSession.handshake(nonceSigners: Array
     val challengeRaw = incoming.receive()
     val challenge = try {
         Challenge.deserialize(challengeRaw.readBytes())
-    } catch (exc: tech.relaycorp.poweb.handshake.InvalidMessageException) { // TODO:
+    } catch (exc: InvalidChallengeException) {
         close(CloseReason(CloseReason.Codes.VIOLATED_POLICY, ""))
         throw PoWebException("Server sent an invalid handshake challenge", exc)
     }

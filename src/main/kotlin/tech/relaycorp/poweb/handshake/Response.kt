@@ -7,8 +7,8 @@ import tech.relaycorp.poweb.internal.protobuf_messages.handshake.Response as PBR
 public class Response(public val nonceSignatures: Array<ByteArray>) {
     public fun serialize(): ByteArray {
         val pbResponse = PBResponse.newBuilder()
-                .addAllGatewayNonceSignatures(nonceSignatures.map { ByteString.copyFrom(it) })
-                .build()
+            .addAllGatewayNonceSignatures(nonceSignatures.map { ByteString.copyFrom(it) })
+            .build()
         return pbResponse.toByteArray()
     }
 
@@ -17,7 +17,7 @@ public class Response(public val nonceSignatures: Array<ByteArray>) {
             val pbResponse = try {
                 PBResponse.parseFrom(serialization)
             } catch (_: InvalidProtocolBufferException) {
-                throw InvalidMessageException("Message is not a valid response")
+                throw InvalidResponseException("Message is not a valid response")
             }
             val nonceSignatures = pbResponse.gatewayNonceSignaturesList.map { it.toByteArray() }
             return Response(nonceSignatures.toTypedArray())

@@ -29,7 +29,7 @@ class ChallengeTest {
         fun `Invalid serialization should be refused`() {
             val serialization = "This is invalid".toByteArray()
 
-            val exception = assertThrows<InvalidMessageException> {
+            val exception = assertThrows<InvalidChallengeException> {
                 Challenge.deserialize(serialization)
             }
 

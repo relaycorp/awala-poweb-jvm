@@ -21,7 +21,7 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import tech.relaycorp.poweb.handshake.InvalidMessageException
+import tech.relaycorp.poweb.handshake.InvalidChallengeException
 import tech.relaycorp.poweb.handshake.NonceSigner
 import tech.relaycorp.poweb.websocket.ActionSequence
 import tech.relaycorp.poweb.websocket.ChallengeAction
@@ -271,7 +271,7 @@ class PoWebClientTest {
                 }
 
                 assertEquals("Server sent an invalid handshake challenge", exception.message)
-                assertTrue(exception.cause is InvalidMessageException)
+                assertTrue(exception.cause is InvalidChallengeException)
             }
             await().until { listener!!.closingCode != null }
             assertEquals(CloseReason.Codes.VIOLATED_POLICY, listener!!.closingCode)
