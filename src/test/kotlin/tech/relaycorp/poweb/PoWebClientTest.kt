@@ -10,6 +10,7 @@ import io.ktor.http.cio.websocket.CloseReason
 import io.ktor.util.InternalAPI
 import io.ktor.util.KtorExperimentalAPI
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.take
@@ -162,7 +163,12 @@ class PoWebClientTest {
 
             client.use {
                 val exception = assertThrows<PoWebException> {
-                    runBlocking { client.wsConnect(path) {} }
+                    runBlocking {
+                        client.wsConnect(path) {
+                            // Add delay to make test pass on a slow CI server (like GitHub's)
+                            delay(3_000)
+                        }
+                    }
                 }
 
                 assertEquals("Connection was closed abruptly", exception.message)
