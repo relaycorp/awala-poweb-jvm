@@ -24,6 +24,13 @@ import java.io.Closeable
 import java.io.EOFException
 import java.net.ConnectException
 
+/**
+ * PoWeb client.
+ *
+ * @param hostName The IP address or domain for the PoWeb server
+ * @param port The port for the PoWeb server
+ * @param useTls Whether the PoWeb server uses TLS
+ */
 @KtorExperimentalAPI
 public class PoWebClient internal constructor(
     internal val hostName: String,
@@ -34,8 +41,16 @@ public class PoWebClient internal constructor(
         install(WebSockets)
     }
 
+    /**
+     * Close the underlying connection to the server (if any).
+     */
     override fun close(): Unit = ktorClient.close()
 
+    /**
+     * Collect parcels on behalf of the specified nodes.
+     *
+     * @param nonceSigners The nonce signers for each node whose parcels should be collected
+     */
     @Throws(PoWebException::class)
     public suspend fun collectParcels(
         nonceSigners: Array<NonceSigner>
@@ -100,9 +115,22 @@ public class PoWebClient internal constructor(
         private const val DEFAULT_LOCAL_PORT = 276
         private const val DEFAULT_REMOTE_PORT = 443
 
+        /**
+         * Connect to a private gateway from a private endpoint.
+         *
+         * @param port The port for the PoWeb server
+         *
+         * TLS won't be used.
+         */
         public fun initLocal(port: Int = DEFAULT_LOCAL_PORT): PoWebClient =
             PoWebClient("127.0.0.1", port, false)
 
+        /**
+         * Connect to a public gateway from a private gateway via TLS.
+         *
+         * @param hostName The IP address or domain for the PoWeb server
+         * @param port The port for the PoWeb server
+         */
         public fun initRemote(hostName: String, port: Int = DEFAULT_REMOTE_PORT): PoWebClient =
             PoWebClient(hostName, port, true)
     }
