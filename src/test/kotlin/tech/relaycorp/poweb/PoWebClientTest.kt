@@ -10,6 +10,7 @@ import io.ktor.http.cio.websocket.CloseReason
 import io.ktor.util.InternalAPI
 import io.ktor.util.KtorExperimentalAPI
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.channels.ClosedReceiveChannelException
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.take
@@ -204,6 +205,17 @@ class PoWebClientTest {
         }
 
         @Test
+        fun `Request headers should be honored`() = runBlocking {
+            val header1 = Pair("x-h1", "value1")
+            val header2 = Pair("x-h2", "value2")
+
+            val wsRequest = mockWSConnect(headers = listOf(header1, header2)) {}
+
+            assertEquals(header1.second, wsRequest.headers[header1.first])
+            assertEquals(header2.second, wsRequest.headers[header2.first])
+        }
+
+        @Test
         fun `Specified block should be called`(): Unit = runBlocking {
             setListenerActions(CloseConnectionAction())
             val client = PoWebClient.initLocal(mockWebServer.port)
@@ -216,6 +228,7 @@ class PoWebClientTest {
 
         private suspend fun mockWSConnect(
             useTls: Boolean = false,
+            headers: List<Pair<String, String>>? = null,
             block: suspend DefaultClientWebSocketSession.() -> Unit
         ): HttpRequestData {
             val client = PoWebClient(hostName, port, useTls)
@@ -223,7 +236,7 @@ class PoWebClientTest {
             client.ktorClient = ktorClientManager.ktorClient
 
             ktorClientManager.useClient {
-                client.wsConnect(path, block)
+                client.wsConnect(path, headers, block)
             }
 
             return ktorClientManager.request
@@ -262,7 +275,27 @@ class PoWebClientTest {
         }
 
         @Test
-        fun `Getting an invalid challenge should result in an exception`() {
+        fun `Server closing connection during handshake should throw exception`() {
+            setListenerActions(CloseConnectionAction())
+
+            client.use {
+                val exception = assertThrows<ServerConnectionException> {
+                    runBlocking { client.collectParcels(arrayOf(signer)).first() }
+                }
+
+                assertEquals(
+                    "Server closed the connection during the handshake",
+                    exception.message
+                )
+                assertTrue(exception.cause is ClosedReceiveChannelException)
+            }
+
+            awaitForConnectionClosure()
+            assertEquals(CloseReason.Codes.NORMAL, listener!!.closingCode)
+        }
+
+        @Test
+        fun `Getting an invalid challenge should throw an exception`() {
             setListenerActions(SendTextMessageAction("Not a valid challenge"))
 
             client.use {
@@ -449,6 +482,36 @@ class PoWebClientTest {
                     deliveries[1].parcelSerialized.asList()
                 )
             }
+        }
+
+        @Test
+        fun `Streaming mode should be Keep-Alive by default`(): Unit = runBlocking {
+            setListenerActions(ChallengeAction(nonce), CloseConnectionAction())
+
+            client.use {
+                client.collectParcels(arrayOf(signer)).toList()
+            }
+
+            awaitForConnectionClosure()
+            assertEquals(
+                StreamingMode.KeepAlive.headerValue,
+                listener!!.request!!.header(StreamingMode.HEADER_NAME)
+            )
+        }
+
+        @Test
+        fun `Streaming mode can be changed on request`(): Unit = runBlocking {
+            setListenerActions(ChallengeAction(nonce), CloseConnectionAction())
+
+            client.use {
+                client.collectParcels(arrayOf(signer), StreamingMode.CloseUponCompletion).toList()
+            }
+
+            awaitForConnectionClosure()
+            assertEquals(
+                StreamingMode.CloseUponCompletion.headerValue,
+                listener!!.request!!.header(StreamingMode.HEADER_NAME)
+            )
         }
 
         @Test

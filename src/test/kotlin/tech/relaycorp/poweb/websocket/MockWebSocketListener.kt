@@ -1,6 +1,7 @@
 package tech.relaycorp.poweb.websocket
 
 import io.ktor.http.cio.websocket.CloseReason
+import okhttp3.Request
 import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
@@ -12,6 +13,7 @@ class MockWebSocketListener(
     private val actions: MutableList<MockWebSocketAction>,
     private val mockWebServer: MockWebServer
 ) : WebSocketListener() {
+    var request: Request? = null
     var connectionOpen = false
     var connected = false
 
@@ -22,6 +24,7 @@ class MockWebSocketListener(
 
     override fun onOpen(webSocket: WebSocket, response: Response) {
         assertFalse(connected, "Listener cannot be reused")
+        request = webSocket.request()
         connectionOpen = true
         connected = true
 

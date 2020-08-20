@@ -5,11 +5,13 @@ import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.features.websocket.DefaultClientWebSocketSession
 import io.ktor.client.features.websocket.WebSockets
 import io.ktor.client.features.websocket.webSocket
+import io.ktor.client.request.header
 import io.ktor.http.cio.websocket.CloseReason
 import io.ktor.http.cio.websocket.Frame
 import io.ktor.http.cio.websocket.close
 import io.ktor.http.cio.websocket.readBytes
 import io.ktor.util.KtorExperimentalAPI
+import kotlinx.coroutines.channels.ClosedReceiveChannelException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.flow
@@ -53,6 +55,7 @@ public class PoWebClient internal constructor(
      * Collect parcels on behalf of the specified nodes.
      *
      * @param nonceSigners The nonce signers for each node whose parcels should be collected
+     * @param streamingMode Which streaming mode to ask the server to use
      */
     @Throws(
         ServerConnectionException::class,
@@ -60,14 +63,23 @@ public class PoWebClient internal constructor(
         NonceSignerException::class
     )
     public suspend fun collectParcels(
-        nonceSigners: Array<NonceSigner>
+        nonceSigners: Array<NonceSigner>,
+        streamingMode: StreamingMode = StreamingMode.KeepAlive
     ): Flow<ParcelCollector> = flow {
         if (nonceSigners.isEmpty()) {
             throw NonceSignerException("At least one nonce signer must be specified")
         }
 
-        wsConnect(PARCEL_COLLECTION_ENDPOINT_PATH) {
-            handshake(nonceSigners)
+        val streamingModeHeader = Pair(StreamingMode.HEADER_NAME, streamingMode.headerValue)
+        wsConnect(PARCEL_COLLECTION_ENDPOINT_PATH, listOf(streamingModeHeader)) {
+            try {
+                handshake(nonceSigners)
+            } catch (exc: ClosedReceiveChannelException) {
+                throw ServerConnectionException(
+                    "Server closed the connection during the handshake",
+                    exc
+                )
+            }
             collectAndAckParcels(this, this@flow)
 
             // The server must've closed the connection for us to get here, since we're consuming
@@ -105,9 +117,14 @@ public class PoWebClient internal constructor(
 
     internal suspend fun wsConnect(
         path: String,
+        headers: List<Pair<String, String>>? = null,
         block: suspend DefaultClientWebSocketSession.() -> Unit
     ) = try {
-        ktorClient.webSocket("$wsScheme://$hostName:$port$path", block = block)
+        ktorClient.webSocket(
+            "$wsScheme://$hostName:$port$path",
+            { headers?.forEach { header(it.first, it.second) } },
+            block
+        )
     } catch (exc: ConnectException) {
         throw ServerConnectionException("Server is unreachable", exc)
     } catch (exc: EOFException) {
@@ -116,6 +133,7 @@ public class PoWebClient internal constructor(
 
     public companion object {
         internal const val PARCEL_COLLECTION_ENDPOINT_PATH = "/v1/parcel-collection"
+
         private const val DEFAULT_LOCAL_PORT = 276
         private const val DEFAULT_REMOTE_PORT = 443
 
