@@ -96,8 +96,7 @@ public class PoWebClient internal constructor(
         path: String,
         block: suspend DefaultClientWebSocketSession.() -> Unit
     ) = try {
-        val wsURL = "$wsScheme://$hostName:$port$path"
-        ktorClient.webSocket(wsURL, block = block)
+        ktorClient.webSocket("$wsScheme://$hostName:$port$path", block = block)
     } catch (exc: ConnectException) {
         throw PoWebException("Server is unreachable", exc)
     } catch (exc: EOFException) {
