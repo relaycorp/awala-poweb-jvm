@@ -253,7 +253,10 @@ class PoWebClientTest {
                 mockClient.collectParcels(arrayOf(signer)).toList()
             }
 
-            assertEquals("/v1/parcel-collection", ktorClientManager.request.url.encodedPath)
+            assertEquals(
+                PoWebClient.PARCEL_COLLECTION_ENDPOINT_PATH,
+                ktorClientManager.request.url.encodedPath
+            )
         }
 
         @Test

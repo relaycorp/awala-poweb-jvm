@@ -40,7 +40,7 @@ public class PoWebClient internal constructor(
     public suspend fun collectParcels(
         nonceSigners: Array<NonceSigner>
     ): Flow<ParcelCollector> = flow {
-        wsConnect("/v1/parcel-collection") {
+        wsConnect(PARCEL_COLLECTION_ENDPOINT_PATH) {
             handshake(nonceSigners)
             collectAndAckParcels(this, this@flow)
 
@@ -96,13 +96,14 @@ public class PoWebClient internal constructor(
     }
 
     public companion object {
-        private const val defaultLocalPort = 276
-        private const val defaultRemotePort = 443
+        internal const val PARCEL_COLLECTION_ENDPOINT_PATH = "/v1/parcel-collection"
+        private const val DEFAULT_LOCAL_PORT = 276
+        private const val DEFAULT_REMOTE_PORT = 443
 
-        public fun initLocal(port: Int = defaultLocalPort): PoWebClient =
+        public fun initLocal(port: Int = DEFAULT_LOCAL_PORT): PoWebClient =
             PoWebClient("127.0.0.1", port, false)
 
-        public fun initRemote(hostName: String, port: Int = defaultRemotePort): PoWebClient =
+        public fun initRemote(hostName: String, port: Int = DEFAULT_REMOTE_PORT): PoWebClient =
             PoWebClient(hostName, port, true)
     }
 }
