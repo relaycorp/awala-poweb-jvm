@@ -9,6 +9,7 @@ import io.ktor.http.URLProtocol
 import io.ktor.http.cio.websocket.CloseReason
 import io.ktor.util.InternalAPI
 import io.ktor.util.KtorExperimentalAPI
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.take
@@ -42,6 +43,7 @@ import kotlin.test.assertTrue
 @KtorExperimentalAPI
 class PoWebClientTest {
     @Nested
+    @Suppress("RedundantInnerClassModifier")
     inner class Constructor {
         @Nested
         inner class InitLocal {
@@ -129,6 +131,8 @@ class PoWebClientTest {
     }
 
     @Nested
+    @Suppress("RedundantInnerClassModifier")
+    @ExperimentalCoroutinesApi
     inner class WebSocketConnection : WebSocketTestCase(false) {
         private val hostName = "127.0.0.1"
         private val port = 13276
