@@ -191,13 +191,11 @@ class PoWebClientTest {
         }
 
         @Test
-        fun `Client should connect to specified host and port`(): Unit = runBlocking {
-            setListenerActions(CloseConnectionAction())
-            val client = PoWebClient.initLocal(mockWebServer.port)
+        fun `Client should connect to specified host and port`(): Unit = runBlockingTest {
+            val wsRequest = mockWSConnect(true) {}
 
-            client.wsConnect(path) {}
-
-            assertTrue(listener!!.connected)
+            assertEquals(hostName, wsRequest.url.host)
+            assertEquals(port, wsRequest.url.port)
         }
 
         @Test
