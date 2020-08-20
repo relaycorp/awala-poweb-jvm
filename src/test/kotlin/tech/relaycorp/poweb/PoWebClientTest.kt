@@ -31,6 +31,7 @@ import tech.relaycorp.poweb.websocket.SendTextMessageAction
 import tech.relaycorp.poweb.websocket.ServerShutdownAction
 import tech.relaycorp.poweb.websocket.WebSocketTestCase
 import tech.relaycorp.relaynet.issueEndpointCertificate
+import tech.relaycorp.relaynet.messages.InvalidMessageException
 import tech.relaycorp.relaynet.messages.control.NonceSignature
 import tech.relaycorp.relaynet.wrappers.generateRSAKeyPair
 import java.io.EOFException
@@ -394,10 +395,7 @@ class PoWebClientTest {
                 }
 
                 assertEquals("Received invalid message from server", exception.message)
-                assertTrue(
-                    // TODO:
-                    exception.cause is tech.relaycorp.relaynet.messages.InvalidMessageException
-                )
+                assertTrue(exception.cause is InvalidMessageException)
             }
 
             awaitForConnectionClosure()
