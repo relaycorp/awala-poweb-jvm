@@ -21,6 +21,7 @@ import tech.relaycorp.poweb.handshake.Response
 import tech.relaycorp.relaynet.messages.InvalidMessageException
 import tech.relaycorp.relaynet.messages.control.ParcelDelivery
 import java.io.Closeable
+import java.io.EOFException
 import java.net.ConnectException
 
 @KtorExperimentalAPI
@@ -43,8 +44,10 @@ public class PoWebClient internal constructor(
             handshake(nonceSigners)
             collectAndAckParcels(this, this@flow)
 
-            val reason = closeReason.await()
-            if (reason != null && reason.code != CloseReason.Codes.NORMAL.code) {
+            // The server must've closed the connection for us to get here, since we're consuming
+            // all incoming messages indefinitely.
+            val reason = closeReason.await()!!
+            if (reason.code != CloseReason.Codes.NORMAL.code) {
                 throw PoWebException(
                     "Server closed the connection unexpectedly " +
                         "(code: ${reason.code}, reason: ${reason.message})"
@@ -88,6 +91,8 @@ public class PoWebClient internal constructor(
         )
     } catch (exc: ConnectException) {
         throw PoWebException("Server is unreachable", exc)
+    } catch (exc: EOFException) {
+        throw PoWebException("Connection was closed abruptly", exc)
     }
 
     public companion object {

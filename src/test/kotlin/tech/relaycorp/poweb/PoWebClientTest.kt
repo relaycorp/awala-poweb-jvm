@@ -29,10 +29,12 @@ import tech.relaycorp.poweb.websocket.CloseConnectionAction
 import tech.relaycorp.poweb.websocket.MockKtorClientManager
 import tech.relaycorp.poweb.websocket.ParcelDeliveryAction
 import tech.relaycorp.poweb.websocket.SendTextMessageAction
+import tech.relaycorp.poweb.websocket.ServerShutdownAction
 import tech.relaycorp.poweb.websocket.WebSocketTestCase
 import tech.relaycorp.relaynet.issueEndpointCertificate
 import tech.relaycorp.relaynet.messages.control.NonceSignature
 import tech.relaycorp.relaynet.wrappers.generateRSAKeyPair
+import java.io.EOFException
 import java.net.ConnectException
 import java.nio.charset.Charset
 import java.time.ZonedDateTime
@@ -139,7 +141,7 @@ class PoWebClientTest {
         private val path = "/v1/the-endpoint"
 
         @Test
-        fun `Failing to connect to the server should result in an exception`() {
+        fun `Failing to connect to the server should throw an exception`() {
             // Connect to an invalid port
             val client = PoWebClient.initLocal(mockWebServer.port - 1)
 
@@ -150,6 +152,21 @@ class PoWebClientTest {
 
                 assertEquals("Server is unreachable", exception.message)
                 assertTrue(exception.cause is ConnectException)
+            }
+        }
+
+        @Test
+        fun `Losing the connection abruptly should throw an exception`(): Unit = runBlocking {
+            val client = PoWebClient.initLocal(mockWebServer.port)
+            setListenerActions(ServerShutdownAction())
+
+            client.use {
+                val exception = assertThrows<PoWebException> {
+                    runBlocking { client.wsConnect(path) {} }
+                }
+
+                assertEquals("Connection was closed abruptly", exception.message)
+                assertTrue(exception.cause is EOFException)
             }
         }
 

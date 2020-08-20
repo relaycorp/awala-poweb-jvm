@@ -4,11 +4,13 @@ import io.ktor.http.cio.websocket.CloseReason
 import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
+import okhttp3.mockwebserver.MockWebServer
 import okio.ByteString
 import kotlin.test.assertFalse
 
 class MockWebSocketListener(
-    private val actions: MutableList<MockWebSocketAction>
+    private val actions: MutableList<MockWebSocketAction>,
+    private val mockWebServer: MockWebServer
 ) : WebSocketListener() {
     var connected = false
 
@@ -38,7 +40,7 @@ class MockWebSocketListener(
 
     private fun runNextAction(webSocket: WebSocket) {
         val action = actions.removeFirst()
-        action.run(webSocket)
+        action.run(webSocket, mockWebServer)
     }
 
     override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {

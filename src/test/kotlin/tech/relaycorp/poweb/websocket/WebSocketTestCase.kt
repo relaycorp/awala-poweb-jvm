@@ -32,7 +32,7 @@ open class WebSocketTestCase(private val autoStartServer: Boolean = true) {
     }
 
     protected fun setListenerActions(vararg actions: MockWebSocketAction) {
-        listener = MockWebSocketListener(actions.toMutableList())
+        listener = MockWebSocketListener(actions.toMutableList(), mockWebServer)
         mockWebServer.enqueue(MockResponse().withWebSocketUpgrade(listener!!))
     }
 }
