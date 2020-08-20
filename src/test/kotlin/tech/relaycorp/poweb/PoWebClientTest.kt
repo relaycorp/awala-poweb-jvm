@@ -280,7 +280,7 @@ class PoWebClientTest {
 
         @Test
         fun `At least one nonce signer should be required`() {
-            setListenerActions(ChallengeAction(nonce))
+            setListenerActions()
 
             client.use {
                 val exception = assertThrows<NonceSignerException> {
@@ -290,8 +290,7 @@ class PoWebClientTest {
                 assertEquals("At least one nonce signer must be specified", exception.message)
             }
 
-            awaitForConnectionClosure()
-            assertEquals(CloseReason.Codes.NORMAL, listener!!.closingCode)
+            assertFalse(listener!!.connected)
         }
 
         @Test

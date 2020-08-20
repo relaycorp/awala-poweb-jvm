@@ -62,6 +62,10 @@ public class PoWebClient internal constructor(
     public suspend fun collectParcels(
         nonceSigners: Array<NonceSigner>
     ): Flow<ParcelCollector> = flow {
+        if (nonceSigners.isEmpty()) {
+            throw NonceSignerException("At least one nonce signer must be specified")
+        }
+
         wsConnect(PARCEL_COLLECTION_ENDPOINT_PATH) {
             handshake(nonceSigners)
             collectAndAckParcels(this, this@flow)
@@ -138,9 +142,6 @@ public class PoWebClient internal constructor(
 
 @Throws(PoWebException::class)
 internal suspend fun DefaultClientWebSocketSession.handshake(nonceSigners: Array<NonceSigner>) {
-    if (nonceSigners.isEmpty()) {
-        throw NonceSignerException("At least one nonce signer must be specified")
-    }
     val challengeRaw = incoming.receive()
     val challenge = try {
         Challenge.deserialize(challengeRaw.readBytes())
