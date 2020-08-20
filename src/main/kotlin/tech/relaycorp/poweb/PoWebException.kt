@@ -6,12 +6,18 @@ public abstract class PoWebException internal constructor(
 ) : Exception(message, cause)
 
 /**
+ * Base class for connectivity errors and errors caused by the server.
+ */
+public sealed class ServerException(message: String, cause: Throwable?) :
+    PoWebException(message, cause)
+
+/**
  * Error before or while connected to the server.
  *
  * The client should retry later.
  */
 public class ServerConnectionException(message: String, cause: Throwable? = null) :
-    PoWebException(message, cause)
+    ServerException(message, cause)
 
 /**
  * The server sent an invalid message.
@@ -19,7 +25,7 @@ public class ServerConnectionException(message: String, cause: Throwable? = null
  * The server didn't adhere to the protocol. Retrying later is unlikely to make a difference.
  */
 public class InvalidServerMessageException(message: String, cause: Throwable) :
-    PoWebException(message, cause)
+    ServerException(message, cause)
 
 /**
  * The client made a mistake while specifying the nonce signer(s).
