@@ -159,7 +159,7 @@ public class PoWebClient internal constructor(
 }
 
 @Throws(PoWebException::class)
-internal suspend fun DefaultClientWebSocketSession.handshake(nonceSigners: Array<NonceSigner>) {
+private suspend fun DefaultClientWebSocketSession.handshake(nonceSigners: Array<NonceSigner>) {
     val challengeRaw = incoming.receive()
     val challenge = try {
         Challenge.deserialize(challengeRaw.readBytes())
