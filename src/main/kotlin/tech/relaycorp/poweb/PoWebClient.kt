@@ -17,10 +17,13 @@ import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.flow
 import tech.relaycorp.poweb.handshake.Challenge
 import tech.relaycorp.poweb.handshake.InvalidChallengeException
-import tech.relaycorp.poweb.handshake.NonceSigner
 import tech.relaycorp.poweb.handshake.Response
+import tech.relaycorp.relaynet.bindings.pdc.NonceSigner
+import tech.relaycorp.relaynet.bindings.pdc.ParcelCollection
+import tech.relaycorp.relaynet.bindings.pdc.StreamingMode
 import tech.relaycorp.relaynet.messages.InvalidMessageException
 import tech.relaycorp.relaynet.messages.control.ParcelDelivery
+import tech.relaycorp.relaynet.wrappers.x509.Certificate
 import java.io.Closeable
 import java.io.EOFException
 import java.net.ConnectException
@@ -65,11 +68,12 @@ public class PoWebClient internal constructor(
     public suspend fun collectParcels(
         nonceSigners: Array<NonceSigner>,
         streamingMode: StreamingMode = StreamingMode.KeepAlive
-    ): Flow<ParcelCollector> = flow {
+    ): Flow<ParcelCollection> = flow {
         if (nonceSigners.isEmpty()) {
             throw NonceSignerException("At least one nonce signer must be specified")
         }
 
+        val trustedCertificates = nonceSigners.map { it.certificate }
         val streamingModeHeader = Pair(StreamingMode.HEADER_NAME, streamingMode.headerValue)
         wsConnect(PARCEL_COLLECTION_ENDPOINT_PATH, listOf(streamingModeHeader)) {
             try {
@@ -83,7 +87,7 @@ public class PoWebClient internal constructor(
                     exc
                 )
             }
-            collectAndAckParcels(this, this@flow)
+            collectAndAckParcels(this, this@flow, trustedCertificates)
 
             // The server must've closed the connection for us to get here, since we're consuming
             // all incoming messages indefinitely.
@@ -100,7 +104,8 @@ public class PoWebClient internal constructor(
     @Throws(PoWebException::class)
     private suspend fun collectAndAckParcels(
         webSocketSession: DefaultClientWebSocketSession,
-        flowCollector: FlowCollector<ParcelCollector>
+        flowCollector: FlowCollector<ParcelCollection>,
+        trustedCertificates: List<Certificate>
     ) {
         for (frame in webSocketSession.incoming) {
             val delivery = try {
@@ -111,7 +116,7 @@ public class PoWebClient internal constructor(
                 )
                 throw InvalidServerMessageException("Received invalid message from server", exc)
             }
-            val collector = ParcelCollector(delivery.parcelSerialized) {
+            val collector = ParcelCollection(delivery.parcelSerialized, trustedCertificates) {
                 webSocketSession.outgoing.send(Frame.Text(delivery.deliveryId))
             }
             flowCollector.emit(collector)

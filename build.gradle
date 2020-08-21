@@ -33,7 +33,7 @@ dependencies {
 
     implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlinVersion")
 
-    api('tech.relaycorp:relaynet:1.34.1')
+    api('tech.relaycorp:relaynet:1.35.0')
 
     // Handshake nonce signatures
     implementation("org.bouncycastle:bcpkix-jdk15on:1.66")
