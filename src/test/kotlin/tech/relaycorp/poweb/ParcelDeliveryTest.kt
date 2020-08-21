@@ -4,6 +4,7 @@ import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.MockRequestHandler
 import io.ktor.client.engine.mock.respond
+import io.ktor.client.engine.mock.respondError
 import io.ktor.client.engine.mock.respondOk
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
@@ -13,7 +14,9 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runBlockingTest
 import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 @ExperimentalCoroutinesApi
@@ -82,18 +85,49 @@ class ParcelDeliveryTest {
     }
 
     @Test
-    @Disabled
     fun `HTTP 30X responses should be regarded protocol violations by the server`() {
+        val client = makeClient { respond("", HttpStatusCode.Found) }
+
+        client.use {
+            val exception = assertThrows<ServerBindingException> {
+                runBlockingTest { client.deliverParcel(parcelSerialized) }
+            }
+
+            assertEquals(
+                "Received unexpected status code (${HttpStatusCode.Found.value})",
+                exception.message
+            )
+        }
     }
 
     @Test
-    @Disabled
     fun `HTTP 403 should throw a RefusedParcelException`() {
+        val client = makeClient { respondError(HttpStatusCode.Forbidden) }
+
+        client.use {
+            val exception = assertThrows<RefusedParcelException> {
+                runBlockingTest { client.deliverParcel(parcelSerialized) }
+            }
+
+            assertNull(exception.message)
+        }
     }
 
     @Test
     @Disabled
     fun `RefusedParcelException should include the reason if present`() {
+        val client = makeClient { respondError(HttpStatusCode.Forbidden) }
+
+        client.use {
+            val exception = assertThrows<RefusedParcelException> {
+                runBlockingTest { client.deliverParcel(parcelSerialized) }
+            }
+
+            assertEquals(
+                "Received unexpected status code (${HttpStatusCode.Found.value})",
+                exception.message
+            )
+        }
     }
 
     @Test

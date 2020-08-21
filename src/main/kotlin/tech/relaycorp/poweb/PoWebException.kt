@@ -1,7 +1,7 @@
 package tech.relaycorp.poweb
 
 public abstract class PoWebException internal constructor(
-    message: String,
+    message: String?,
     cause: Throwable? = null
 ) : Exception(message, cause)
 
@@ -20,12 +20,17 @@ public class ServerConnectionException(message: String, cause: Throwable? = null
     ServerException(message, cause)
 
 /**
- * The server sent an invalid message.
+ * The server sent an invalid message or behaved in any other way that violates the PoWeb binding.
  *
  * The server didn't adhere to the protocol. Retrying later is unlikely to make a difference.
  */
-public class InvalidServerMessageException(message: String, cause: Throwable) :
+public class ServerBindingException(message: String, cause: Throwable? = null) :
     ServerException(message, cause)
+
+/**
+ * The server refused to accept a parcel.
+ */
+public class RefusedParcelException(message: String?) : PoWebException(message)
 
 /**
  * The client made a mistake while specifying the nonce signer(s).

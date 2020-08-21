@@ -2,6 +2,7 @@ package tech.relaycorp.poweb
 
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
+import io.ktor.client.features.ResponseException
 import io.ktor.client.features.websocket.DefaultClientWebSocketSession
 import io.ktor.client.features.websocket.WebSockets
 import io.ktor.client.features.websocket.webSocket
@@ -65,10 +66,20 @@ public class PoWebClient internal constructor(
      *
      * @param parcelSerialized The serialization of the parcel
      */
-    @Throws(ServerConnectionException::class, InvalidServerMessageException::class)
+    @Throws(ServerConnectionException::class, ServerBindingException::class)
     public suspend fun deliverParcel(parcelSerialized: ByteArray) {
-        ktorClient.post<Unit>("$baseURL/parcels") {
-            body = ByteArrayContent(parcelSerialized, PARCEL_CONTENT_TYPE)
+        try {
+            ktorClient.post<Unit>("$baseURL/parcels") {
+                body = ByteArrayContent(parcelSerialized, PARCEL_CONTENT_TYPE)
+            }
+        } catch (exc: ResponseException) {
+            when (exc.response!!.status.value) {
+                // TODO: Use HttpStatusCode.Forbidden
+                403 -> throw RefusedParcelException(null)
+                else -> throw ServerBindingException(
+                    "Received unexpected status code (${exc.response!!.status.value})"
+                )
+            }
         }
     }
 
@@ -80,7 +91,7 @@ public class PoWebClient internal constructor(
      */
     @Throws(
         ServerConnectionException::class,
-        InvalidServerMessageException::class,
+        ServerBindingException::class,
         NonceSignerException::class
     )
     public suspend fun collectParcels(
@@ -132,7 +143,7 @@ public class PoWebClient internal constructor(
                 webSocketSession.close(
                     CloseReason(CloseReason.Codes.VIOLATED_POLICY, "Invalid parcel delivery")
                 )
-                throw InvalidServerMessageException("Received invalid message from server", exc)
+                throw ServerBindingException("Received invalid message from server", exc)
             }
             val collector = ParcelCollection(delivery.parcelSerialized, trustedCertificates) {
                 webSocketSession.outgoing.send(Frame.Text(delivery.deliveryId))
@@ -193,7 +204,7 @@ private suspend fun DefaultClientWebSocketSession.handshake(nonceSigners: Array<
         Challenge.deserialize(challengeRaw.readBytes())
     } catch (exc: InvalidChallengeException) {
         close(CloseReason(CloseReason.Codes.VIOLATED_POLICY, ""))
-        throw InvalidServerMessageException("Server sent an invalid handshake challenge", exc)
+        throw ServerBindingException("Server sent an invalid handshake challenge", exc)
     }
     val nonceSignatures = nonceSigners.map { it.sign(challenge.nonce) }.toTypedArray()
     val response = Response(nonceSignatures)
