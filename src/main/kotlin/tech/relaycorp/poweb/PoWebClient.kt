@@ -75,6 +75,9 @@ public class PoWebClient internal constructor(
             try {
                 handshake(nonceSigners)
             } catch (exc: ClosedReceiveChannelException) {
+                // Alert the client to the fact that the server closed the connection before
+                // completing the handshake. Otherwise, the client will assume that the operation
+                // succeeded and there were no parcels to collect.
                 throw ServerConnectionException(
                     "Server closed the connection during the handshake",
                     exc
