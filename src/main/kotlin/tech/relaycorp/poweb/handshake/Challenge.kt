@@ -16,7 +16,7 @@ public class Challenge(public val nonce: ByteArray) {
             val pbChallenge = try {
                 PBChallenge.parseFrom(serialization)
             } catch (_: InvalidProtocolBufferException) {
-                throw InvalidMessageException("Message is not a valid challenge")
+                throw InvalidChallengeException("Message is not a valid challenge")
             }
             return Challenge(pbChallenge.gatewayNonce.toByteArray())
         }

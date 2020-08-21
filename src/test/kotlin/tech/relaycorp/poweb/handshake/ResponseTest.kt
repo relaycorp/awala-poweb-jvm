@@ -58,7 +58,7 @@ class ResponseTest {
         fun `Invalid serialization should be refused`() {
             val serialization = "This is invalid".toByteArray()
 
-            val exception = assertThrows<InvalidMessageException> {
+            val exception = assertThrows<InvalidResponseException> {
                 Response.deserialize(serialization)
             }
 
