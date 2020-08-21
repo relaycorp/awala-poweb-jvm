@@ -59,6 +59,13 @@ class PoWebClientTest {
 
                 assertEquals(customPort, client.port)
             }
+
+            @Test
+            fun `Correct HTTP URL should be set when not using TLS`() {
+                val client = PoWebClient.initLocal()
+
+                assertEquals("http://127.0.0.1:276/v1", client.baseURL)
+            }
         }
 
         @Nested
@@ -92,6 +99,13 @@ class PoWebClientTest {
                 val client = PoWebClient.initRemote(hostName, customPort)
 
                 assertEquals(customPort, client.port)
+            }
+
+            @Test
+            fun `Correct HTTPS URL should be set when using TLS`() {
+                val client = PoWebClient.initRemote(hostName)
+
+                assertEquals("https://$hostName:443/v1", client.baseURL)
             }
         }
     }

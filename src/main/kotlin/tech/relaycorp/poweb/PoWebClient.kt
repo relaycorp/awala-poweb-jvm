@@ -6,10 +6,13 @@ import io.ktor.client.features.websocket.DefaultClientWebSocketSession
 import io.ktor.client.features.websocket.WebSockets
 import io.ktor.client.features.websocket.webSocket
 import io.ktor.client.request.header
+import io.ktor.client.request.post
+import io.ktor.http.ContentType
 import io.ktor.http.cio.websocket.CloseReason
 import io.ktor.http.cio.websocket.Frame
 import io.ktor.http.cio.websocket.close
 import io.ktor.http.cio.websocket.readBytes
+import io.ktor.http.content.ByteArrayContent
 import io.ktor.util.KtorExperimentalAPI
 import kotlinx.coroutines.channels.ClosedReceiveChannelException
 import kotlinx.coroutines.flow.Flow
@@ -47,12 +50,27 @@ public class PoWebClient internal constructor(
         install(WebSockets)
     }
 
+    private val urlScheme = if (useTls) "https" else "http"
     private val wsScheme = if (useTls) "wss" else "ws"
+
+    internal val baseURL: String = "$urlScheme://$hostName:$port/v1"
 
     /**
      * Close the underlying connection to the server (if any).
      */
     override fun close(): Unit = ktorClient.close()
+
+    /**
+     * Deliver a parcel.
+     *
+     * @param parcelSerialized The serialization of the parcel
+     */
+    @Throws(ServerConnectionException::class, InvalidServerMessageException::class)
+    public suspend fun deliverParcel(parcelSerialized: ByteArray) {
+        ktorClient.post<Unit>("$baseURL/parcels") {
+            body = ByteArrayContent(parcelSerialized, PARCEL_CONTENT_TYPE)
+        }
+    }
 
     /**
      * Collect parcels on behalf of the specified nodes.
@@ -144,6 +162,8 @@ public class PoWebClient internal constructor(
 
         private const val DEFAULT_LOCAL_PORT = 276
         private const val DEFAULT_REMOTE_PORT = 443
+
+        private val PARCEL_CONTENT_TYPE = ContentType("application", "vnd.relaynet.parcel")
 
         /**
          * Connect to a private gateway from a private endpoint.
