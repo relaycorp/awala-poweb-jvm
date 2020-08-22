@@ -8,7 +8,7 @@ public abstract class PoWebException internal constructor(
 /**
  * Base class for connectivity errors and errors caused by the server.
  */
-public sealed class ServerException(message: String, cause: Throwable?) :
+public abstract class ServerException internal constructor(message: String, cause: Throwable?) :
     PoWebException(message, cause)
 
 /**
@@ -33,6 +33,19 @@ public class ServerBindingException(message: String, cause: Throwable? = null) :
 public class RefusedParcelException(message: String?) : PoWebException(message)
 
 /**
+ * Base class for exceptions (supposedly) caused by the client.
+ */
+public abstract class ClientException internal constructor(message: String) :
+    PoWebException(message)
+
+/**
+ * The server claims that the client is violating the PoWeb binding.
+ *
+ * Retrying later is unlikely to make a difference.
+ */
+public class ClientBindingException(message: String) : ClientException(message)
+
+/**
  * The client made a mistake while specifying the nonce signer(s).
  */
-public class NonceSignerException(message: String) : PoWebException(message)
+public class NonceSignerException(message: String) : ClientException(message)

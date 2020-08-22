@@ -66,19 +66,30 @@ public class PoWebClient internal constructor(
      *
      * @param parcelSerialized The serialization of the parcel
      */
-    @Throws(ServerConnectionException::class, ServerBindingException::class)
+    @Throws(
+        ServerConnectionException::class,
+        ServerBindingException::class,
+        RefusedParcelException::class,
+        ClientBindingException::class
+    )
     public suspend fun deliverParcel(parcelSerialized: ByteArray) {
         try {
             ktorClient.post<Unit>("$baseURL/parcels") {
                 body = ByteArrayContent(parcelSerialized, PARCEL_CONTENT_TYPE)
             }
+        } catch (exc: ConnectException) {
+            throw ServerConnectionException("Failed to connect to $baseURL", exc)
         } catch (exc: ResponseException) {
-            when (exc.response!!.status.value) {
-                // TODO: Use HttpStatusCode.Forbidden
+            val status = exc.response!!.status
+            when (status.value) {
                 403 -> throw RefusedParcelException(null)
-                else -> throw ServerBindingException(
-                    "Received unexpected status code (${exc.response!!.status.value})"
+                in 400..499 -> throw ClientBindingException(
+                    "The server reports that the client violated binding ($status)"
                 )
+                in 500..599 -> throw ServerConnectionException(
+                    "The server was unable to fulfil the request ($status)"
+                )
+                else -> throw ServerBindingException("Received unexpected status ($status)")
             }
         }
     }
