@@ -2,14 +2,18 @@ package tech.relaycorp.poweb
 
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
+import io.ktor.client.features.ResponseException
 import io.ktor.client.features.websocket.DefaultClientWebSocketSession
 import io.ktor.client.features.websocket.WebSockets
 import io.ktor.client.features.websocket.webSocket
 import io.ktor.client.request.header
+import io.ktor.client.request.post
+import io.ktor.http.ContentType
 import io.ktor.http.cio.websocket.CloseReason
 import io.ktor.http.cio.websocket.Frame
 import io.ktor.http.cio.websocket.close
 import io.ktor.http.cio.websocket.readBytes
+import io.ktor.http.content.ByteArrayContent
 import io.ktor.util.KtorExperimentalAPI
 import kotlinx.coroutines.channels.ClosedReceiveChannelException
 import kotlinx.coroutines.flow.Flow
@@ -47,12 +51,48 @@ public class PoWebClient internal constructor(
         install(WebSockets)
     }
 
+    private val urlScheme = if (useTls) "https" else "http"
     private val wsScheme = if (useTls) "wss" else "ws"
+
+    internal val baseURL: String = "$urlScheme://$hostName:$port/v1"
 
     /**
      * Close the underlying connection to the server (if any).
      */
     override fun close(): Unit = ktorClient.close()
+
+    /**
+     * Deliver a parcel.
+     *
+     * @param parcelSerialized The serialization of the parcel
+     */
+    @Throws(
+        ServerConnectionException::class,
+        ServerBindingException::class,
+        RefusedParcelException::class,
+        ClientBindingException::class
+    )
+    public suspend fun deliverParcel(parcelSerialized: ByteArray) {
+        try {
+            ktorClient.post<Unit>("$baseURL/parcels") {
+                body = ByteArrayContent(parcelSerialized, PARCEL_CONTENT_TYPE)
+            }
+        } catch (exc: ConnectException) {
+            throw ServerConnectionException("Failed to connect to $baseURL", exc)
+        } catch (exc: ResponseException) {
+            val status = exc.response!!.status
+            when (status.value) {
+                403 -> throw RefusedParcelException("Parcel was refused by the server ($status)")
+                in 400..499 -> throw ClientBindingException(
+                    "The server reports that the client violated binding ($status)"
+                )
+                in 500..599 -> throw ServerConnectionException(
+                    "The server was unable to fulfil the request ($status)"
+                )
+                else -> throw ServerBindingException("Received unexpected status ($status)")
+            }
+        }
+    }
 
     /**
      * Collect parcels on behalf of the specified nodes.
@@ -62,7 +102,7 @@ public class PoWebClient internal constructor(
      */
     @Throws(
         ServerConnectionException::class,
-        InvalidServerMessageException::class,
+        ServerBindingException::class,
         NonceSignerException::class
     )
     public suspend fun collectParcels(
@@ -114,7 +154,7 @@ public class PoWebClient internal constructor(
                 webSocketSession.close(
                     CloseReason(CloseReason.Codes.VIOLATED_POLICY, "Invalid parcel delivery")
                 )
-                throw InvalidServerMessageException("Received invalid message from server", exc)
+                throw ServerBindingException("Received invalid message from server", exc)
             }
             val collector = ParcelCollection(delivery.parcelSerialized, trustedCertificates) {
                 webSocketSession.outgoing.send(Frame.Text(delivery.deliveryId))
@@ -145,6 +185,8 @@ public class PoWebClient internal constructor(
         private const val DEFAULT_LOCAL_PORT = 276
         private const val DEFAULT_REMOTE_PORT = 443
 
+        private val PARCEL_CONTENT_TYPE = ContentType("application", "vnd.relaynet.parcel")
+
         /**
          * Connect to a private gateway from a private endpoint.
          *
@@ -173,7 +215,7 @@ private suspend fun DefaultClientWebSocketSession.handshake(nonceSigners: Array<
         Challenge.deserialize(challengeRaw.readBytes())
     } catch (exc: InvalidChallengeException) {
         close(CloseReason(CloseReason.Codes.VIOLATED_POLICY, ""))
-        throw InvalidServerMessageException("Server sent an invalid handshake challenge", exc)
+        throw ServerBindingException("Server sent an invalid handshake challenge", exc)
     }
     val nonceSignatures = nonceSigners.map { it.sign(challenge.nonce) }.toTypedArray()
     val response = Response(nonceSignatures)

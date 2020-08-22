@@ -90,7 +90,7 @@ class ParcelCollectionTest : WebSocketTestCase() {
             setListenerActions(SendTextMessageAction("Not a valid challenge"))
 
             client.use {
-                val exception = assertThrows<InvalidServerMessageException> {
+                val exception = assertThrows<ServerBindingException> {
                     runBlocking { client.collectParcels(arrayOf(signer)).first() }
                 }
 
@@ -202,7 +202,7 @@ class ParcelCollectionTest : WebSocketTestCase() {
         setListenerActions(ChallengeAction(nonce), SendTextMessageAction("invalid"))
 
         client.use {
-            val exception = assertThrows<InvalidServerMessageException> {
+            val exception = assertThrows<ServerBindingException> {
                 runBlocking { client.collectParcels(arrayOf(signer)).toList() }
             }
 
