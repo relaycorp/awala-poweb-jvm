@@ -18,7 +18,6 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.net.ConnectException
 import kotlin.test.assertEquals
-import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 @ExperimentalCoroutinesApi
@@ -111,7 +110,10 @@ class ParcelDeliveryTest {
                 runBlockingTest { client.deliverParcel(parcelSerialized) }
             }
 
-            assertNull(exception.message)
+            assertEquals(
+                "Parcel was refused by the server (${HttpStatusCode.Forbidden})",
+                exception.message
+            )
         }
     }
 

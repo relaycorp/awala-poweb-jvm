@@ -82,7 +82,7 @@ public class PoWebClient internal constructor(
         } catch (exc: ResponseException) {
             val status = exc.response!!.status
             when (status.value) {
-                403 -> throw RefusedParcelException(null)
+                403 -> throw RefusedParcelException("Parcel was refused by the server ($status)")
                 in 400..499 -> throw ClientBindingException(
                     "The server reports that the client violated binding ($status)"
                 )

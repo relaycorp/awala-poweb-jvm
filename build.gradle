@@ -38,6 +38,7 @@ dependencies {
     // Handshake nonce signatures
     implementation("org.bouncycastle:bcpkix-jdk15on:1.66")
 
+    // HTTP + WebSockets handling
     implementation("io.ktor:ktor-client-okhttp:$ktorVersion")
     testImplementation("io.ktor:ktor-client-mock:$ktorVersion")
     testImplementation("io.ktor:ktor-client-mock-jvm:$ktorVersion")

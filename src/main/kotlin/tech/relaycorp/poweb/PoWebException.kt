@@ -30,7 +30,7 @@ public class ServerBindingException(message: String, cause: Throwable? = null) :
 /**
  * The server refused to accept a parcel.
  */
-public class RefusedParcelException(message: String?) : PoWebException(message)
+public class RefusedParcelException(message: String) : PoWebException(message)
 
 /**
  * Base class for exceptions (supposedly) caused by the client.
