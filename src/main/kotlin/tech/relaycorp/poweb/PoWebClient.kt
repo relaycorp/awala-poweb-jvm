@@ -31,6 +31,7 @@ import tech.relaycorp.relaynet.wrappers.x509.Certificate
 import java.io.Closeable
 import java.io.EOFException
 import java.net.ConnectException
+import java.net.SocketException
 
 /**
  * PoWeb client.
@@ -77,7 +78,9 @@ public class PoWebClient internal constructor(
             ktorClient.post<Unit>("$baseURL/parcels") {
                 body = ByteArrayContent(parcelSerialized, PARCEL_CONTENT_TYPE)
             }
-        } catch (exc: ConnectException) {
+        } catch (exc: SocketException) {
+            // Java on macOS throws a SocketException but all other platforms throw a
+            // ConnectException (a subclass of SocketException)
             throw ServerConnectionException("Failed to connect to $baseURL", exc)
         } catch (exc: ResponseException) {
             val status = exc.response!!.status

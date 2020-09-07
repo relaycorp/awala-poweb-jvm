@@ -13,7 +13,6 @@ import io.ktor.util.KtorExperimentalAPI
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runBlockingTest
-import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.net.ConnectException
@@ -112,23 +111,6 @@ class ParcelDeliveryTest {
 
             assertEquals(
                 "Parcel was refused by the server (${HttpStatusCode.Forbidden})",
-                exception.message
-            )
-        }
-    }
-
-    @Test
-    @Disabled
-    fun `RefusedParcelException should include the error message if present`() {
-        val client = makeClient { respondError(HttpStatusCode.Forbidden) }
-
-        client.use {
-            val exception = assertThrows<RefusedParcelException> {
-                runBlockingTest { client.deliverParcel(parcelSerialized) }
-            }
-
-            assertEquals(
-                "Received unexpected status code (${HttpStatusCode.Found.value})",
                 exception.message
             )
         }
