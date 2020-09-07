@@ -32,6 +32,7 @@ import java.io.Closeable
 import java.io.EOFException
 import java.net.ConnectException
 import java.net.SocketException
+import java.security.PublicKey
 
 /**
  * PoWeb client.
@@ -61,6 +62,20 @@ public class PoWebClient internal constructor(
      * Close the underlying connection to the server (if any).
      */
     override fun close(): Unit = ktorClient.close()
+
+    /**
+     * Request a Private Node Registration Authorization (PNRA).
+     *
+     * @param nodePublicKey The public key of the private node requesting authorization
+     */
+    @Throws(
+        ServerConnectionException::class,
+        ServerBindingException::class,
+        ClientBindingException::class
+    )
+    public suspend fun preRegisterNode(nodePublicKey: PublicKey): ByteArray {
+        TODO()
+    }
 
     /**
      * Deliver a parcel.
