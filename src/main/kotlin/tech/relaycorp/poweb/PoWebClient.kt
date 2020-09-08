@@ -1,13 +1,14 @@
 package tech.relaycorp.poweb
 
 import io.ktor.client.HttpClient
+import io.ktor.client.engine.HttpClientEngine
 import io.ktor.client.engine.okhttp.OkHttp
-import io.ktor.client.features.ResponseException
 import io.ktor.client.features.websocket.DefaultClientWebSocketSession
 import io.ktor.client.features.websocket.WebSockets
 import io.ktor.client.features.websocket.webSocket
 import io.ktor.client.request.header
 import io.ktor.client.request.post
+import io.ktor.client.statement.HttpResponse
 import io.ktor.http.ContentType
 import io.ktor.http.cio.websocket.CloseReason
 import io.ktor.http.cio.websocket.Frame
@@ -50,9 +51,10 @@ import java.security.PublicKey
 public class PoWebClient internal constructor(
     internal val hostName: String,
     internal val port: Int,
-    internal val useTls: Boolean
+    internal val useTls: Boolean,
+    ktorEngine: HttpClientEngine = OkHttp.create {}
 ) : Closeable {
-    internal var ktorClient = HttpClient(OkHttp) {
+    internal var ktorClient = HttpClient(ktorEngine) {
         install(WebSockets)
     }
 
@@ -78,7 +80,8 @@ public class PoWebClient internal constructor(
     )
     public suspend fun preRegisterNode(nodePublicKey: PublicKey): ByteArray {
         val keyDigest = getSHA256DigestHex(nodePublicKey.encoded)
-        return post("/pre-registrations", TextContent(keyDigest, ContentType.Text.Plain))
+        post("/pre-registrations", TextContent(keyDigest, ContentType.Text.Plain))
+        return "ignore!".toByteArray()
     }
 
     /**
@@ -94,7 +97,7 @@ public class PoWebClient internal constructor(
     )
     public suspend fun deliverParcel(parcelSerialized: ByteArray) {
         val body = ByteArrayContent(parcelSerialized, PARCEL_CONTENT_TYPE)
-        return try {
+        try {
             post("/parcels", body)
         } catch (exc: ClientBindingException) {
             throw if (exc.statusCode == 403)
@@ -178,28 +181,30 @@ public class PoWebClient internal constructor(
         ServerBindingException::class,
         ClientBindingException::class
     )
-    internal suspend inline fun <reified T> post(path: String, requestBody: OutgoingContent): T {
+    internal suspend fun post(path: String, requestBody: OutgoingContent): HttpResponse {
         val url = "$baseURL$path"
-        try {
-            return ktorClient.post(url) {
+        val response: HttpResponse = try {
+            ktorClient.post(url) {
                 body = requestBody
             }
         } catch (exc: SocketException) {
             // Java on macOS throws a SocketException but all other platforms throw a
             // ConnectException (a subclass of SocketException)
             throw ServerConnectionException("Failed to connect to $url", exc)
-        } catch (exc: ResponseException) {
-            val status = exc.response!!.status
-            when (status.value) {
-                in 400..499 -> throw ClientBindingException(
-                    "The server reports that the client violated binding ($status)",
-                    status.value
-                )
-                in 500..599 -> throw ServerConnectionException(
-                    "The server was unable to fulfil the request ($status)"
-                )
-                else -> throw ServerBindingException("Received unexpected status ($status)")
-            }
+        }
+
+        if (response.status.value in 200..299) {
+            return response
+        }
+        throw when (response.status.value) {
+            in 400..499 -> ClientBindingException(
+                "The server reports that the client violated binding (${response.status})",
+                response.status.value
+            )
+            in 500..599 -> ServerConnectionException(
+                "The server was unable to fulfil the request (${response.status})"
+            )
+            else -> ServerBindingException("Received unexpected status (${response.status})")
         }
     }
 

@@ -76,6 +76,14 @@ class PoWebClientTest {
 
                 assertEquals("http://127.0.0.1:276/v1", client.baseURL)
             }
+
+            @InternalAPI
+            @Test
+            fun `OkHTTP should be the client engine`() {
+                val client = PoWebClient.initLocal()
+
+                assertTrue(client.ktorClient.engine is OkHttpEngine)
+            }
         }
 
         @Nested
@@ -117,6 +125,14 @@ class PoWebClientTest {
 
                 assertEquals("https://$hostName:443/v1", client.baseURL)
             }
+
+            @InternalAPI
+            @Test
+            fun `OkHTTP should be the client engine`() {
+                val client = PoWebClient.initRemote(hostName)
+
+                assertTrue(client.ktorClient.engine is OkHttpEngine)
+            }
         }
     }
 
@@ -153,7 +169,7 @@ class PoWebClientTest {
                     respondOk()
                 }
 
-                client.use { client.post<Unit>(path, body) }
+                client.use { client.post(path, body) }
 
                 assertEquals(HttpMethod.Post, method)
             }
@@ -166,7 +182,7 @@ class PoWebClientTest {
                     respondOk()
                 }
 
-                client.use { client.post<Unit>(path, body) }
+                client.use { client.post(path, body) }
 
                 assertEquals("${client.baseURL}$path", endpointURL)
             }
@@ -179,7 +195,7 @@ class PoWebClientTest {
                     respondOk()
                 }
 
-                client.use { client.post<Unit>(path, body) }
+                client.use { client.post(path, body) }
 
                 assertEquals(body.contentType!!.toString(), contentType)
             }
@@ -193,7 +209,7 @@ class PoWebClientTest {
                     respondOk()
                 }
 
-                client.use { client.post<Unit>(path, body) }
+                client.use { client.post(path, body) }
 
                 assertEquals(body.bytes().asList(), requestBody?.asList())
             }
@@ -201,7 +217,6 @@ class PoWebClientTest {
 
         @Nested
         inner class Response {
-
             @Test
             fun `HTTP 20X should be regarded a successful delivery`() = runBlockingTest {
                 val client = makeTestClient { respond("", HttpStatusCode.Accepted) }
