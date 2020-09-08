@@ -15,6 +15,7 @@ import io.ktor.http.cio.websocket.close
 import io.ktor.http.cio.websocket.readBytes
 import io.ktor.http.content.ByteArrayContent
 import io.ktor.http.content.OutgoingContent
+import io.ktor.http.content.TextContent
 import io.ktor.util.KtorExperimentalAPI
 import kotlinx.coroutines.channels.ClosedReceiveChannelException
 import kotlinx.coroutines.flow.Flow
@@ -33,6 +34,7 @@ import java.io.Closeable
 import java.io.EOFException
 import java.net.ConnectException
 import java.net.SocketException
+import java.security.MessageDigest
 import java.security.PublicKey
 
 /**
@@ -75,7 +77,8 @@ public class PoWebClient internal constructor(
         ClientBindingException::class
     )
     public suspend fun preRegisterNode(nodePublicKey: PublicKey): ByteArray {
-        TODO()
+        val keyDigest = getSHA256DigestHex(nodePublicKey.encoded)
+        return post("/pre-registrations", TextContent(keyDigest, ContentType.Text.Plain))
     }
 
     /**
@@ -243,6 +246,11 @@ public class PoWebClient internal constructor(
          */
         public fun initRemote(hostName: String, port: Int = DEFAULT_REMOTE_PORT): PoWebClient =
             PoWebClient(hostName, port, true)
+
+        private fun getSHA256DigestHex(plaintext: ByteArray): String {
+            val digest = MessageDigest.getInstance("SHA-256")
+            return digest.digest(plaintext).joinToString("") { "%02x".format(it) }
+        }
     }
 }
 
