@@ -33,7 +33,7 @@ dependencies {
 
     implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlinVersion")
 
-    api('tech.relaycorp:relaynet:1.36.0')
+    api('tech.relaycorp:relaynet:1.36.3')
 
     // Handshake nonce signatures
     implementation("org.bouncycastle:bcpkix-jdk15on:1.66")
@@ -44,7 +44,7 @@ dependencies {
     testImplementation("io.ktor:ktor-client-mock-jvm:$ktorVersion")
     testImplementation("com.squareup.okhttp3:okhttp:$okhttpVersion")
     testImplementation("com.squareup.okhttp3:mockwebserver:$okhttpVersion")
-    testImplementation("com.squareup.okio:okio:2.7.0")
+    testImplementation("com.squareup.okio:okio:2.8.0")
     testImplementation("org.awaitility:awaitility:4.0.3")
 
     // Protobuf
@@ -57,7 +57,7 @@ dependencies {
     testImplementation("org.junit.jupiter:junit-jupiter-params:5.6.2")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
     testImplementation("com.nhaarman.mockitokotlin2:mockito-kotlin:2.2.0")
-    testImplementation("org.mockito:mockito-inline:3.5.5")
+    testImplementation("org.mockito:mockito-inline:3.5.10")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:$kotlinCoroutinesVersion")
 }
 
