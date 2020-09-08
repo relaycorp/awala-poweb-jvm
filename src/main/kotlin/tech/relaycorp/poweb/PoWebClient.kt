@@ -97,11 +97,10 @@ public class PoWebClient internal constructor(
         return try {
             post("/parcels", body)
         } catch (exc: ClientBindingException) {
-            if (exc.statusCode == 403) {
-                throw RejectedParcelException("The server rejected the parcel")
-            } else {
-                throw exc
-            }
+            throw if (exc.statusCode == 403)
+                RejectedParcelException("The server rejected the parcel")
+            else
+                exc
         }
     }
 
