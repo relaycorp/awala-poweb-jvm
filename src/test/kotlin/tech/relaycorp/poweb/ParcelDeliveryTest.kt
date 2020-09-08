@@ -15,7 +15,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runBlockingTest
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import java.net.ConnectException
+import java.net.SocketException
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
@@ -161,7 +161,7 @@ class ParcelDeliveryTest {
             }
 
             assertEquals("Failed to connect to ${client.baseURL}", exception.message)
-            assertTrue(exception.cause is ConnectException)
+            assertTrue(exception.cause is SocketException)
         }
     }
 
