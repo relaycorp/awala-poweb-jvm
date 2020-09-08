@@ -17,7 +17,9 @@ import io.ktor.http.cio.websocket.readBytes
 import io.ktor.http.content.ByteArrayContent
 import io.ktor.http.content.OutgoingContent
 import io.ktor.http.content.TextContent
+import io.ktor.http.contentType
 import io.ktor.util.KtorExperimentalAPI
+import io.ktor.util.toByteArray
 import kotlinx.coroutines.channels.ClosedReceiveChannelException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
@@ -80,8 +82,16 @@ public class PoWebClient internal constructor(
     )
     public suspend fun preRegisterNode(nodePublicKey: PublicKey): ByteArray {
         val keyDigest = getSHA256DigestHex(nodePublicKey.encoded)
-        post("/pre-registrations", TextContent(keyDigest, ContentType.Text.Plain))
-        return "ignore!".toByteArray()
+        val response = post("/pre-registrations", TextContent(keyDigest, ContentType.Text.Plain))
+
+        val contentType = response.contentType()
+        if (contentType != PNRA_CONTENT_TYPE) {
+            throw ServerBindingException(
+                "The server returned an invalid Content-Type ($contentType)"
+            )
+        }
+
+        return response.content.toByteArray()
     }
 
     /**
@@ -231,6 +241,8 @@ public class PoWebClient internal constructor(
         private const val DEFAULT_REMOTE_PORT = 443
 
         private val PARCEL_CONTENT_TYPE = ContentType("application", "vnd.relaynet.parcel")
+        internal val PNRA_CONTENT_TYPE =
+            ContentType("application", "vnd.relaynet.node-registration.authorization")
 
         /**
          * Connect to a private gateway from a private endpoint.

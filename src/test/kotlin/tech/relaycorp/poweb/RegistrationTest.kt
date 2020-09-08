@@ -1,16 +1,17 @@
 package tech.relaycorp.poweb
 
-import io.ktor.client.engine.mock.respondOk
+import io.ktor.client.engine.mock.respond
 import io.ktor.client.request.HttpRequestData
 import io.ktor.http.ContentType
 import io.ktor.http.HttpMethod
 import io.ktor.http.content.OutgoingContent
+import io.ktor.http.headersOf
 import io.ktor.util.KtorExperimentalAPI
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runBlockingTest
-import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import tech.relaycorp.relaynet.wrappers.generateRSAKeyPair
 import java.nio.charset.Charset
 import kotlin.test.assertEquals
@@ -23,12 +24,15 @@ class RegistrationTest {
 
     @Nested
     inner class PreRegistration {
+        private val responseHeaders =
+            headersOf("Content-Type", PoWebClient.PNRA_CONTENT_TYPE.toString())
+
         @Test
         fun `Request should be made with HTTP POST`() = runBlockingTest {
             var method: HttpMethod? = null
             val client = makeTestClient { request: HttpRequestData ->
                 method = request.method
-                respondOk()
+                respond(byteArrayOf(), headers = responseHeaders)
             }
 
             client.use { client.preRegisterNode(publicKey) }
@@ -41,7 +45,7 @@ class RegistrationTest {
             var endpointURL: String? = null
             val client = makeTestClient { request: HttpRequestData ->
                 endpointURL = request.url.toString()
-                respondOk()
+                respond(byteArrayOf(), headers = responseHeaders)
             }
 
             client.use { client.preRegisterNode(publicKey) }
@@ -54,7 +58,7 @@ class RegistrationTest {
             var contentType: ContentType? = null
             val client = makeTestClient { request: HttpRequestData ->
                 contentType = request.body.contentType
-                respondOk()
+                respond(byteArrayOf(), headers = responseHeaders)
             }
 
             client.use { client.preRegisterNode(publicKey) }
@@ -68,7 +72,7 @@ class RegistrationTest {
             val client = makeTestClient { request: HttpRequestData ->
                 assertTrue(request.body is OutgoingContent.ByteArrayContent)
                 requestBody = (request.body as OutgoingContent.ByteArrayContent).bytes()
-                respondOk()
+                respond(byteArrayOf(), headers = responseHeaders)
             }
 
             client.use { client.preRegisterNode(publicKey) }
@@ -80,18 +84,42 @@ class RegistrationTest {
         }
 
         @Test
-        @Disabled
-        fun `An invalid response content type should be refused`() {
+        fun `An invalid response Content-Type should be refused`() {
+            val invalidContentType = ContentType.Application.Json
+            val client = makeTestClient {
+                respond(
+                    "{}",
+                    headers = headersOf("Content-Type", invalidContentType.toString())
+                )
+            }
+
+            val exception = assertThrows<ServerBindingException> {
+                runBlockingTest {
+                    client.use { client.preRegisterNode(publicKey) }
+                }
+            }
+
+            assertEquals(
+                "The server returned an invalid Content-Type ($invalidContentType)",
+                exception.message
+            )
         }
 
         @Test
-        @Disabled
-        fun `20X response status other than 200 should throw an error`() {
-        }
+        fun `Authorization should be output serialized if request succeeds`() {
+            runBlockingTest {
+                val authorizationSerialized = "This is the PNRA".toByteArray()
+                val client = makeTestClient {
+                    respond(authorizationSerialized, headers = responseHeaders)
+                }
 
-        @Test
-        @Disabled
-        fun `Authorization should be output serialized if status is 200`() {
+                client.use {
+                    assertEquals(
+                        authorizationSerialized.asList(),
+                        it.preRegisterNode(publicKey).asList()
+                    )
+                }
+            }
         }
     }
 }
