@@ -46,7 +46,7 @@ jacocoTestCoverageVerification {
                 // Workaround for
                 // - https://github.com/jacoco/jacoco/issues/1036
                 // - https://github.com/jacoco/jacoco/issues/654
-                maximum = "8".toBigDecimal()
+                maximum = "9".toBigDecimal()
             }
         }
     }
