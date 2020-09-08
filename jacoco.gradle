@@ -29,24 +29,20 @@ jacocoTestCoverageVerification {
             limit {
                 counter = "CLASS"
                 value = "MISSEDCOUNT"
-                // Workaround for https://github.com/jacoco/jacoco/issues/654
-                maximum = "3".toBigDecimal()
+                maximum = "0".toBigDecimal()
             }
 
             limit {
                 counter = "METHOD"
                 value = "MISSEDCOUNT"
-                // Workaround for https://github.com/jacoco/jacoco/issues/654
-                maximum = "4".toBigDecimal()
+                maximum = "0".toBigDecimal()
             }
 
             limit {
                 counter = "BRANCH"
                 value = "MISSEDCOUNT"
-                // Workaround for
-                // - https://github.com/jacoco/jacoco/issues/1036
-                // - https://github.com/jacoco/jacoco/issues/654
-                maximum = "9".toBigDecimal()
+                // Workaround for https://github.com/jacoco/jacoco/issues/1036
+                maximum = "1".toBigDecimal()
             }
         }
     }
