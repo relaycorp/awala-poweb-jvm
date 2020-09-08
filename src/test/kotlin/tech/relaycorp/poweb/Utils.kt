@@ -15,3 +15,5 @@ internal fun makeTestClient(handler: MockRequestHandler): PoWebClient {
     }
     return poWebClient
 }
+
+const val NON_ROUTABLE_IP_ADDRESS = "192.0.2.1"

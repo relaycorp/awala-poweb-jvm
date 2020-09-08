@@ -9,11 +9,9 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.content.OutgoingContent
 import io.ktor.util.KtorExperimentalAPI
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runBlockingTest
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import java.net.SocketException
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
@@ -83,83 +81,26 @@ class ParcelDeliveryTest {
     }
 
     @Test
-    fun `HTTP 30X responses should be regarded protocol violations by the server`() {
-        val client = makeTestClient { respond("", HttpStatusCode.Found) }
-
-        client.use {
-            val exception = assertThrows<ServerBindingException> {
-                runBlockingTest { client.deliverParcel(parcelSerialized) }
-            }
-
-            assertEquals(
-                "Received unexpected status (${HttpStatusCode.Found})",
-                exception.message
-            )
-        }
-    }
-
-    @Test
     fun `HTTP 403 should throw a RefusedParcelException`() {
         val client = makeTestClient { respondError(HttpStatusCode.Forbidden) }
 
         client.use {
-            val exception = assertThrows<RefusedParcelException> {
+            val exception = assertThrows<RejectedParcelException> {
                 runBlockingTest { client.deliverParcel(parcelSerialized) }
             }
 
-            assertEquals(
-                "Parcel was refused by the server (${HttpStatusCode.Forbidden})",
-                exception.message
-            )
+            assertEquals("The server rejected the parcel", exception.message)
         }
     }
 
     @Test
-    fun `Other 40X responses should be regarded protocol violations by the client`() {
+    fun `Other client exceptions should be propagated`() {
         val client = makeTestClient { respondError(HttpStatusCode.BadRequest) }
 
         client.use {
-            val exception = assertThrows<ClientBindingException> {
+            assertThrows<ClientBindingException> {
                 runBlockingTest { client.deliverParcel(parcelSerialized) }
             }
-
-            assertEquals(
-                "The server reports that the client violated binding " +
-                    "(${HttpStatusCode.BadRequest})",
-                exception.message
-            )
-        }
-    }
-
-    @Test
-    fun `HTTP 50X responses should throw a ServerConnectionException`() {
-        val client = makeTestClient { respondError(HttpStatusCode.BadGateway) }
-
-        client.use {
-            val exception = assertThrows<ServerConnectionException> {
-                runBlockingTest { client.deliverParcel(parcelSerialized) }
-            }
-
-            assertEquals(
-                "The server was unable to fulfil the request (${HttpStatusCode.BadGateway})",
-                exception.message
-            )
-        }
-    }
-
-    @Test
-    fun `TCP connection issues should throw a ServerConnectionException`() {
-        val nonRouteableIPAddress = "192.0.2.1"
-        // Use a real client to try to open an actual network connection
-        val client = PoWebClient.initRemote(nonRouteableIPAddress)
-
-        client.use {
-            val exception = assertThrows<ServerConnectionException> {
-                runBlocking { client.deliverParcel(parcelSerialized) }
-            }
-
-            assertEquals("Failed to connect to ${client.baseURL}", exception.message)
-            assertTrue(exception.cause is SocketException)
         }
     }
 }

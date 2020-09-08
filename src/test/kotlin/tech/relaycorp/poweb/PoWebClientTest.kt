@@ -2,10 +2,18 @@ package tech.relaycorp.poweb
 
 import com.nhaarman.mockitokotlin2.spy
 import com.nhaarman.mockitokotlin2.verify
+import io.ktor.client.engine.mock.respond
+import io.ktor.client.engine.mock.respondError
+import io.ktor.client.engine.mock.respondOk
 import io.ktor.client.engine.okhttp.OkHttpEngine
 import io.ktor.client.features.websocket.DefaultClientWebSocketSession
 import io.ktor.client.request.HttpRequestData
+import io.ktor.http.ContentType
+import io.ktor.http.HttpMethod
+import io.ktor.http.HttpStatusCode
 import io.ktor.http.URLProtocol
+import io.ktor.http.content.ByteArrayContent
+import io.ktor.http.content.OutgoingContent
 import io.ktor.util.InternalAPI
 import io.ktor.util.KtorExperimentalAPI
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -20,14 +28,16 @@ import tech.relaycorp.poweb.websocket.ServerShutdownAction
 import tech.relaycorp.poweb.websocket.WebSocketTestCase
 import java.io.EOFException
 import java.net.ConnectException
+import java.net.SocketException
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
+@ExperimentalCoroutinesApi
 @KtorExperimentalAPI
+@Suppress("RedundantInnerClassModifier")
 class PoWebClientTest {
     @Nested
-    @Suppress("RedundantInnerClassModifier")
     inner class Constructor {
         @Nested
         inner class InitLocal {
@@ -129,8 +139,145 @@ class PoWebClientTest {
     }
 
     @Nested
-    @Suppress("RedundantInnerClassModifier")
-    @ExperimentalCoroutinesApi
+    inner class Post {
+        private val path = "/foo"
+        private val body = ByteArrayContent("bar".toByteArray(), ContentType.Text.Plain)
+
+        @Nested
+        inner class Request {
+            @Test
+            fun `Request should be made with HTTP POST`() = runBlockingTest {
+                var method: HttpMethod? = null
+                val client = makeTestClient { request: HttpRequestData ->
+                    method = request.method
+                    respondOk()
+                }
+
+                client.use { client.post<Unit>(path, body) }
+
+                assertEquals(HttpMethod.Post, method)
+            }
+
+            @Test
+            fun `Specified path should be honored`() = runBlockingTest {
+                var endpointURL: String? = null
+                val client = makeTestClient { request: HttpRequestData ->
+                    endpointURL = request.url.toString()
+                    respondOk()
+                }
+
+                client.use { client.post<Unit>(path, body) }
+
+                assertEquals("${client.baseURL}$path", endpointURL)
+            }
+
+            @Test
+            fun `Specified Content-Type should be honored`() = runBlockingTest {
+                var contentType: String? = null
+                val client = makeTestClient { request: HttpRequestData ->
+                    contentType = request.body.contentType.toString()
+                    respondOk()
+                }
+
+                client.use { client.post<Unit>(path, body) }
+
+                assertEquals(body.contentType!!.toString(), contentType)
+            }
+
+            @Test
+            fun `Request body should be the parcel serialized`() = runBlockingTest {
+                var requestBody: ByteArray? = null
+                val client = makeTestClient { request: HttpRequestData ->
+                    assertTrue(request.body is OutgoingContent.ByteArrayContent)
+                    requestBody = (request.body as OutgoingContent.ByteArrayContent).bytes()
+                    respondOk()
+                }
+
+                client.use { client.post<Unit>(path, body) }
+
+                assertEquals(body.bytes().asList(), requestBody?.asList())
+            }
+        }
+
+        @Nested
+        inner class Response {
+
+            @Test
+            fun `HTTP 20X should be regarded a successful delivery`() = runBlockingTest {
+                val client = makeTestClient { respond("", HttpStatusCode.Accepted) }
+
+                client.use { client.post(path, body) }
+            }
+
+            @Test
+            fun `HTTP 30X responses should be regarded protocol violations by the server`() {
+                val client = makeTestClient { respond("", HttpStatusCode.Found) }
+
+                client.use {
+                    val exception = assertThrows<ServerBindingException> {
+                        runBlockingTest { client.post(path, body) }
+                    }
+
+                    assertEquals(
+                        "Received unexpected status (${HttpStatusCode.Found})",
+                        exception.message
+                    )
+                }
+            }
+
+            @Test
+            fun `Other 40X responses should be regarded protocol violations by the client`() {
+                val client = makeTestClient { respondError(HttpStatusCode.BadRequest) }
+
+                client.use {
+                    val exception = assertThrows<ClientBindingException> {
+                        runBlockingTest { client.post(path, body) }
+                    }
+
+                    assertEquals(
+                        "The server reports that the client violated binding " +
+                            "(${HttpStatusCode.BadRequest})",
+                        exception.message
+                    )
+                    assertEquals(HttpStatusCode.BadRequest.value, exception.statusCode)
+                }
+            }
+
+            @Test
+            fun `HTTP 50X responses should throw a ServerConnectionException`() {
+                val client = makeTestClient { respondError(HttpStatusCode.BadGateway) }
+
+                client.use {
+                    val exception = assertThrows<ServerConnectionException> {
+                        runBlockingTest { client.post(path, body) }
+                    }
+
+                    assertEquals(
+                        "The server was unable to fulfil the request " +
+                            "(${HttpStatusCode.BadGateway})",
+                        exception.message
+                    )
+                }
+            }
+        }
+
+        @Test
+        fun `TCP connection issues should throw a ServerConnectionException`() {
+            // Use a real client to try to open an actual network connection
+            val client = PoWebClient.initRemote(NON_ROUTABLE_IP_ADDRESS)
+
+            client.use {
+                val exception = assertThrows<ServerConnectionException> {
+                    runBlocking { client.post(path, body) }
+                }
+
+                assertEquals("Failed to connect to ${client.baseURL}$path", exception.message)
+                assertTrue(exception.cause is SocketException)
+            }
+        }
+    }
+
+    @Nested
     inner class WebSocketConnection : WebSocketTestCase(false) {
         private val hostName = "127.0.0.1"
         private val port = 13276

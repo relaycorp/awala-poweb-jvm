@@ -14,6 +14,7 @@ import io.ktor.http.cio.websocket.Frame
 import io.ktor.http.cio.websocket.close
 import io.ktor.http.cio.websocket.readBytes
 import io.ktor.http.content.ByteArrayContent
+import io.ktor.http.content.OutgoingContent
 import io.ktor.util.KtorExperimentalAPI
 import kotlinx.coroutines.channels.ClosedReceiveChannelException
 import kotlinx.coroutines.flow.Flow
@@ -85,29 +86,18 @@ public class PoWebClient internal constructor(
     @Throws(
         ServerConnectionException::class,
         ServerBindingException::class,
-        RefusedParcelException::class,
+        RejectedParcelException::class,
         ClientBindingException::class
     )
     public suspend fun deliverParcel(parcelSerialized: ByteArray) {
-        try {
-            ktorClient.post<Unit>("$baseURL/parcels") {
-                body = ByteArrayContent(parcelSerialized, PARCEL_CONTENT_TYPE)
-            }
-        } catch (exc: SocketException) {
-            // Java on macOS throws a SocketException but all other platforms throw a
-            // ConnectException (a subclass of SocketException)
-            throw ServerConnectionException("Failed to connect to $baseURL", exc)
-        } catch (exc: ResponseException) {
-            val status = exc.response!!.status
-            when (status.value) {
-                403 -> throw RefusedParcelException("Parcel was refused by the server ($status)")
-                in 400..499 -> throw ClientBindingException(
-                    "The server reports that the client violated binding ($status)"
-                )
-                in 500..599 -> throw ServerConnectionException(
-                    "The server was unable to fulfil the request ($status)"
-                )
-                else -> throw ServerBindingException("Received unexpected status ($status)")
+        val body = ByteArrayContent(parcelSerialized, PARCEL_CONTENT_TYPE)
+        return try {
+            post("/parcels", body)
+        } catch (exc: ClientBindingException) {
+            if (exc.statusCode == 403) {
+                throw RejectedParcelException("The server rejected the parcel")
+            } else {
+                throw exc
             }
         }
     }
@@ -178,6 +168,36 @@ public class PoWebClient internal constructor(
                 webSocketSession.outgoing.send(Frame.Text(delivery.deliveryId))
             }
             flowCollector.emit(collector)
+        }
+    }
+
+    @Throws(
+        ServerConnectionException::class,
+        ServerBindingException::class,
+        ClientBindingException::class
+    )
+    internal suspend inline fun <reified T> post(path: String, requestBody: OutgoingContent): T {
+        val url = "$baseURL$path"
+        try {
+            return ktorClient.post(url) {
+                body = requestBody
+            }
+        } catch (exc: SocketException) {
+            // Java on macOS throws a SocketException but all other platforms throw a
+            // ConnectException (a subclass of SocketException)
+            throw ServerConnectionException("Failed to connect to $url", exc)
+        } catch (exc: ResponseException) {
+            val status = exc.response!!.status
+            when (status.value) {
+                in 400..499 -> throw ClientBindingException(
+                    "The server reports that the client violated binding ($status)",
+                    status.value
+                )
+                in 500..599 -> throw ServerConnectionException(
+                    "The server was unable to fulfil the request ($status)"
+                )
+                else -> throw ServerBindingException("Received unexpected status ($status)")
+            }
         }
     }
 

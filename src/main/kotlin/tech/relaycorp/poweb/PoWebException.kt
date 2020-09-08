@@ -30,7 +30,7 @@ public class ServerBindingException(message: String, cause: Throwable? = null) :
 /**
  * The server refused to accept a parcel.
  */
-public class RefusedParcelException(message: String) : PoWebException(message)
+public class RejectedParcelException(message: String) : PoWebException(message)
 
 /**
  * Base class for exceptions (supposedly) caused by the client.
@@ -43,7 +43,8 @@ public abstract class ClientException internal constructor(message: String) :
  *
  * Retrying later is unlikely to make a difference.
  */
-public class ClientBindingException(message: String) : ClientException(message)
+public class ClientBindingException(message: String, public val statusCode: Int) :
+    ClientException(message)
 
 /**
  * The client made a mistake while specifying the nonce signer(s).
