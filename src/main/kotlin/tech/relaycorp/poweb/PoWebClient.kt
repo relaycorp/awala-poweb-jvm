@@ -32,6 +32,7 @@ import tech.relaycorp.relaynet.bindings.pdc.ParcelCollection
 import tech.relaycorp.relaynet.bindings.pdc.StreamingMode
 import tech.relaycorp.relaynet.messages.InvalidMessageException
 import tech.relaycorp.relaynet.messages.control.ParcelDelivery
+import tech.relaycorp.relaynet.messages.control.PrivateNodeRegistration
 import tech.relaycorp.relaynet.wrappers.x509.Certificate
 import java.io.Closeable
 import java.io.EOFException
@@ -84,14 +85,26 @@ public class PoWebClient internal constructor(
         val keyDigest = getSHA256DigestHex(nodePublicKey.encoded)
         val response = post("/pre-registrations", TextContent(keyDigest, ContentType.Text.Plain))
 
-        val contentType = response.contentType()
-        if (contentType != PNRA_CONTENT_TYPE) {
-            throw ServerBindingException(
-                "The server returned an invalid Content-Type ($contentType)"
-            )
-        }
+        requireContentType(PNRA_CONTENT_TYPE, response.contentType())
 
         return response.content.toByteArray()
+    }
+
+    /**
+     * Register a private node.
+     *
+     * @param pnrrSerialized The Private Node Registration Request
+     */
+    public suspend fun registerNode(pnrrSerialized: ByteArray): PrivateNodeRegistration {
+        val response = post("/nodes", ByteArrayContent(pnrrSerialized, PNRR_CONTENT_TYPE))
+
+        requireContentType(PNR_CONTENT_TYPE, response.contentType())
+
+        return try {
+            PrivateNodeRegistration.deserialize(response.content.toByteArray())
+        } catch (exc: InvalidMessageException) {
+            throw ServerBindingException("The server returned a malformed registration", exc)
+        }
     }
 
     /**
@@ -218,6 +231,17 @@ public class PoWebClient internal constructor(
         }
     }
 
+    private fun requireContentType(
+        requiredContentType: ContentType,
+        actualContentType: ContentType?
+    ) {
+        if (actualContentType != requiredContentType) {
+            throw ServerBindingException(
+                "The server returned an invalid Content-Type ($actualContentType)"
+            )
+        }
+    }
+
     internal suspend fun wsConnect(
         path: String,
         headers: List<Pair<String, String>>? = null,
@@ -243,6 +267,10 @@ public class PoWebClient internal constructor(
         private val PARCEL_CONTENT_TYPE = ContentType("application", "vnd.relaynet.parcel")
         internal val PNRA_CONTENT_TYPE =
             ContentType("application", "vnd.relaynet.node-registration.authorization")
+        internal val PNRR_CONTENT_TYPE =
+            ContentType("application", "vnd.relaynet.node-registration.request")
+        internal val PNR_CONTENT_TYPE =
+            ContentType("application", "vnd.relaynet.node-registration.registration")
 
         /**
          * Connect to a private gateway from a private endpoint.
