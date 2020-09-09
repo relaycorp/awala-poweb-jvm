@@ -1,20 +1,25 @@
 package tech.relaycorp.poweb
 
 import io.ktor.client.HttpClient
+import io.ktor.client.engine.HttpClientEngine
 import io.ktor.client.engine.okhttp.OkHttp
-import io.ktor.client.features.ResponseException
 import io.ktor.client.features.websocket.DefaultClientWebSocketSession
 import io.ktor.client.features.websocket.WebSockets
 import io.ktor.client.features.websocket.webSocket
 import io.ktor.client.request.header
 import io.ktor.client.request.post
+import io.ktor.client.statement.HttpResponse
 import io.ktor.http.ContentType
 import io.ktor.http.cio.websocket.CloseReason
 import io.ktor.http.cio.websocket.Frame
 import io.ktor.http.cio.websocket.close
 import io.ktor.http.cio.websocket.readBytes
 import io.ktor.http.content.ByteArrayContent
+import io.ktor.http.content.OutgoingContent
+import io.ktor.http.content.TextContent
+import io.ktor.http.contentType
 import io.ktor.util.KtorExperimentalAPI
+import io.ktor.util.toByteArray
 import kotlinx.coroutines.channels.ClosedReceiveChannelException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
@@ -27,11 +32,14 @@ import tech.relaycorp.relaynet.bindings.pdc.ParcelCollection
 import tech.relaycorp.relaynet.bindings.pdc.StreamingMode
 import tech.relaycorp.relaynet.messages.InvalidMessageException
 import tech.relaycorp.relaynet.messages.control.ParcelDelivery
+import tech.relaycorp.relaynet.messages.control.PrivateNodeRegistration
 import tech.relaycorp.relaynet.wrappers.x509.Certificate
 import java.io.Closeable
 import java.io.EOFException
 import java.net.ConnectException
 import java.net.SocketException
+import java.security.MessageDigest
+import java.security.PublicKey
 
 /**
  * PoWeb client.
@@ -46,9 +54,10 @@ import java.net.SocketException
 public class PoWebClient internal constructor(
     internal val hostName: String,
     internal val port: Int,
-    internal val useTls: Boolean
+    internal val useTls: Boolean,
+    ktorEngine: HttpClientEngine = OkHttp.create {}
 ) : Closeable {
-    internal var ktorClient = HttpClient(OkHttp) {
+    internal var ktorClient = HttpClient(ktorEngine) {
         install(WebSockets)
     }
 
@@ -63,6 +72,42 @@ public class PoWebClient internal constructor(
     override fun close(): Unit = ktorClient.close()
 
     /**
+     * Request a Private Node Registration Authorization (PNRA).
+     *
+     * @param nodePublicKey The public key of the private node requesting authorization
+     */
+    @Throws(
+        ServerConnectionException::class,
+        ServerBindingException::class,
+        ClientBindingException::class
+    )
+    public suspend fun preRegisterNode(nodePublicKey: PublicKey): ByteArray {
+        val keyDigest = getSHA256DigestHex(nodePublicKey.encoded)
+        val response = post("/pre-registrations", TextContent(keyDigest, ContentType.Text.Plain))
+
+        requireContentType(PNRA_CONTENT_TYPE, response.contentType())
+
+        return response.content.toByteArray()
+    }
+
+    /**
+     * Register a private node.
+     *
+     * @param pnrrSerialized The Private Node Registration Request
+     */
+    public suspend fun registerNode(pnrrSerialized: ByteArray): PrivateNodeRegistration {
+        val response = post("/nodes", ByteArrayContent(pnrrSerialized, PNRR_CONTENT_TYPE))
+
+        requireContentType(PNR_CONTENT_TYPE, response.contentType())
+
+        return try {
+            PrivateNodeRegistration.deserialize(response.content.toByteArray())
+        } catch (exc: InvalidMessageException) {
+            throw ServerBindingException("The server returned a malformed registration", exc)
+        }
+    }
+
+    /**
      * Deliver a parcel.
      *
      * @param parcelSerialized The serialization of the parcel
@@ -70,30 +115,18 @@ public class PoWebClient internal constructor(
     @Throws(
         ServerConnectionException::class,
         ServerBindingException::class,
-        RefusedParcelException::class,
+        RejectedParcelException::class,
         ClientBindingException::class
     )
     public suspend fun deliverParcel(parcelSerialized: ByteArray) {
+        val body = ByteArrayContent(parcelSerialized, PARCEL_CONTENT_TYPE)
         try {
-            ktorClient.post<Unit>("$baseURL/parcels") {
-                body = ByteArrayContent(parcelSerialized, PARCEL_CONTENT_TYPE)
-            }
-        } catch (exc: SocketException) {
-            // Java on macOS throws a SocketException but all other platforms throw a
-            // ConnectException (a subclass of SocketException)
-            throw ServerConnectionException("Failed to connect to $baseURL", exc)
-        } catch (exc: ResponseException) {
-            val status = exc.response!!.status
-            when (status.value) {
-                403 -> throw RefusedParcelException("Parcel was refused by the server ($status)")
-                in 400..499 -> throw ClientBindingException(
-                    "The server reports that the client violated binding ($status)"
-                )
-                in 500..599 -> throw ServerConnectionException(
-                    "The server was unable to fulfil the request ($status)"
-                )
-                else -> throw ServerBindingException("Received unexpected status ($status)")
-            }
+            post("/parcels", body)
+        } catch (exc: ClientBindingException) {
+            throw if (exc.statusCode == 403)
+                RejectedParcelException("The server rejected the parcel")
+            else
+                exc
         }
     }
 
@@ -166,6 +199,49 @@ public class PoWebClient internal constructor(
         }
     }
 
+    @Throws(
+        ServerConnectionException::class,
+        ServerBindingException::class,
+        ClientBindingException::class
+    )
+    internal suspend fun post(path: String, requestBody: OutgoingContent): HttpResponse {
+        val url = "$baseURL$path"
+        val response: HttpResponse = try {
+            ktorClient.post(url) {
+                body = requestBody
+            }
+        } catch (exc: SocketException) {
+            // Java on macOS throws a SocketException but all other platforms throw a
+            // ConnectException (a subclass of SocketException)
+            throw ServerConnectionException("Failed to connect to $url", exc)
+        }
+
+        if (response.status.value in 200..299) {
+            return response
+        }
+        throw when (response.status.value) {
+            in 400..499 -> ClientBindingException(
+                "The server reports that the client violated binding (${response.status})",
+                response.status.value
+            )
+            in 500..599 -> ServerConnectionException(
+                "The server was unable to fulfil the request (${response.status})"
+            )
+            else -> ServerBindingException("Received unexpected status (${response.status})")
+        }
+    }
+
+    private fun requireContentType(
+        requiredContentType: ContentType,
+        actualContentType: ContentType?
+    ) {
+        if (actualContentType != requiredContentType) {
+            throw ServerBindingException(
+                "The server returned an invalid Content-Type ($actualContentType)"
+            )
+        }
+    }
+
     internal suspend fun wsConnect(
         path: String,
         headers: List<Pair<String, String>>? = null,
@@ -189,6 +265,12 @@ public class PoWebClient internal constructor(
         private const val DEFAULT_REMOTE_PORT = 443
 
         private val PARCEL_CONTENT_TYPE = ContentType("application", "vnd.relaynet.parcel")
+        internal val PNRA_CONTENT_TYPE =
+            ContentType("application", "vnd.relaynet.node-registration.authorization")
+        internal val PNRR_CONTENT_TYPE =
+            ContentType("application", "vnd.relaynet.node-registration.request")
+        internal val PNR_CONTENT_TYPE =
+            ContentType("application", "vnd.relaynet.node-registration.registration")
 
         /**
          * Connect to a private gateway from a private endpoint.
@@ -208,6 +290,11 @@ public class PoWebClient internal constructor(
          */
         public fun initRemote(hostName: String, port: Int = DEFAULT_REMOTE_PORT): PoWebClient =
             PoWebClient(hostName, port, true)
+
+        private fun getSHA256DigestHex(plaintext: ByteArray): String {
+            val digest = MessageDigest.getInstance("SHA-256")
+            return digest.digest(plaintext).joinToString("") { "%02x".format(it) }
+        }
     }
 }
 
