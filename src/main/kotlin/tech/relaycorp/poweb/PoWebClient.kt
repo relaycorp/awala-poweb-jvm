@@ -26,6 +26,7 @@ import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.flow
 import tech.relaycorp.poweb.handshake.Challenge
 import tech.relaycorp.poweb.handshake.InvalidChallengeException
+import tech.relaycorp.poweb.handshake.PoWebContentType
 import tech.relaycorp.poweb.handshake.Response
 import tech.relaycorp.relaynet.bindings.pdc.NonceSigner
 import tech.relaycorp.relaynet.bindings.pdc.ParcelCollection
@@ -264,12 +265,12 @@ public class PoWebClient internal constructor(
         private const val DEFAULT_LOCAL_PORT = 276
         private const val DEFAULT_REMOTE_PORT = 443
 
-        private val PARCEL_CONTENT_TYPE = ContentType("application", "vnd.relaynet.parcel")
-        internal val PNRA_CONTENT_TYPE =
-            ContentType("application", "vnd.relaynet.node-registration.authorization")
-        internal val PNRR_CONTENT_TYPE =
+        private val PARCEL_CONTENT_TYPE = ContentType.parse(PoWebContentType.PARCEL.value)
+        private val PNRA_CONTENT_TYPE =
+            ContentType.parse(PoWebContentType.REGISTRATION_AUTHORIZATION.value)
+        private val PNRR_CONTENT_TYPE =
             ContentType("application", "vnd.relaynet.node-registration.request")
-        internal val PNR_CONTENT_TYPE =
+        private val PNR_CONTENT_TYPE =
             ContentType("application", "vnd.relaynet.node-registration.registration")
 
         /**

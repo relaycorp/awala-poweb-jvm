@@ -12,6 +12,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runBlockingTest
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import tech.relaycorp.poweb.handshake.PoWebContentType
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
@@ -56,7 +57,7 @@ class ParcelDeliveryTest {
 
         client.use { client.deliverParcel(parcelSerialized) }
 
-        assertEquals("application/vnd.relaynet.parcel", contentType)
+        assertEquals(PoWebContentType.PARCEL.value, contentType)
     }
 
     @Test
