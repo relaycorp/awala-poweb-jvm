@@ -66,7 +66,7 @@ class RegistrationTest {
 
             client.use { client.preRegisterNode(publicKey) }
 
-            assertEquals(ContentType.Text.Plain, contentType)
+            assertEquals(PoWebContentType.PRE_REGISTRATION.value, contentType.toString())
         }
 
         @Test

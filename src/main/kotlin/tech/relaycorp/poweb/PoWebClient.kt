@@ -83,7 +83,8 @@ public class PoWebClient internal constructor(
     )
     public suspend fun preRegisterNode(nodePublicKey: PublicKey): ByteArray {
         val keyDigest = getSHA256DigestHex(nodePublicKey.encoded)
-        val response = post("/pre-registrations", TextContent(keyDigest, ContentType.Text.Plain))
+        val response =
+            post("/pre-registrations", TextContent(keyDigest, PRE_REGISTRATION_CONTENT_TYPE))
 
         requireContentType(PNRA_CONTENT_TYPE, response.contentType())
 
@@ -265,6 +266,8 @@ public class PoWebClient internal constructor(
         private const val DEFAULT_REMOTE_PORT = 443
 
         private val PARCEL_CONTENT_TYPE = ContentType.parse(PoWebContentType.PARCEL.value)
+        private val PRE_REGISTRATION_CONTENT_TYPE =
+            ContentType.parse(PoWebContentType.PRE_REGISTRATION.value)
         private val PNRA_CONTENT_TYPE =
             ContentType.parse(PoWebContentType.REGISTRATION_AUTHORIZATION.value)
         private val PNRR_CONTENT_TYPE =
