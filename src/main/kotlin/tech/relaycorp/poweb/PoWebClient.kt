@@ -26,7 +26,6 @@ import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.flow
 import tech.relaycorp.poweb.handshake.Challenge
 import tech.relaycorp.poweb.handshake.InvalidChallengeException
-import tech.relaycorp.poweb.handshake.PoWebContentType
 import tech.relaycorp.poweb.handshake.Response
 import tech.relaycorp.relaynet.bindings.pdc.NonceSigner
 import tech.relaycorp.relaynet.bindings.pdc.ParcelCollection

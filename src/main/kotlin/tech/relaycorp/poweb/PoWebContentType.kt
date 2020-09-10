@@ -1,4 +1,4 @@
-package tech.relaycorp.poweb.handshake
+package tech.relaycorp.poweb
 
 public enum class PoWebContentType(public val value: String) {
     PARCEL("application/vnd.relaynet.parcel"),

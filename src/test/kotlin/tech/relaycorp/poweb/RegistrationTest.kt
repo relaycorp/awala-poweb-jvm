@@ -12,7 +12,6 @@ import kotlinx.coroutines.test.runBlockingTest
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import tech.relaycorp.poweb.handshake.PoWebContentType
 import tech.relaycorp.relaynet.messages.InvalidMessageException
 import tech.relaycorp.relaynet.messages.control.PrivateNodeRegistration
 import tech.relaycorp.relaynet.testing.CertificationPath

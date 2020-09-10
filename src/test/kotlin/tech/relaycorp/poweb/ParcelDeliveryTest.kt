@@ -12,7 +12,6 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runBlockingTest
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import tech.relaycorp.poweb.handshake.PoWebContentType
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
