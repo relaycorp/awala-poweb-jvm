@@ -1,12 +1,12 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 buildscript {
-    ext.kotlinVersion = '1.4.0'
+    ext.kotlinVersion = '1.4.10'
     ext.protobufVersion = '3.13.0'
     ext.protobufGradleVersion = '0.8.13'
     ext.kotlinCoroutinesVersion = '1.3.8'
     ext.ktorVersion = '1.4.0'
-    ext.okhttpVersion = '4.8.1'
+    ext.okhttpVersion = '4.9.0'
 }
 
 plugins {
