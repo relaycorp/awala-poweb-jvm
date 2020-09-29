@@ -33,7 +33,7 @@ dependencies {
 
     implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlinVersion")
 
-    api('tech.relaycorp:relaynet:1.36.4')
+    api('tech.relaycorp:relaynet:1.36.5')
     implementation('tech.relaycorp:relaynet-testing:1.0.0')
 
     // Handshake nonce signatures
@@ -55,7 +55,7 @@ dependencies {
 
     testImplementation("org.jetbrains.kotlin:kotlin-test")
     testImplementation("org.junit.jupiter:junit-jupiter:5.7.0")
-    testImplementation("org.junit.jupiter:junit-jupiter-params:5.6.2")
+    testImplementation("org.junit.jupiter:junit-jupiter-params:5.7.0")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
     testImplementation("com.nhaarman.mockitokotlin2:mockito-kotlin:2.2.0")
     testImplementation("org.mockito:mockito-inline:3.5.11")
