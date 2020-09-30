@@ -24,6 +24,7 @@ import kotlinx.coroutines.channels.ClosedReceiveChannelException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.flow
+import okhttp3.OkHttpClient
 import tech.relaycorp.poweb.handshake.Challenge
 import tech.relaycorp.poweb.handshake.InvalidChallengeException
 import tech.relaycorp.poweb.handshake.Response
@@ -55,7 +56,14 @@ public class PoWebClient internal constructor(
     internal val hostName: String,
     internal val port: Int,
     internal val useTls: Boolean,
-    ktorEngine: HttpClientEngine = OkHttp.create {}
+    ktorEngine: HttpClientEngine = OkHttp.create {
+        // By default, OkHTTP would throw an IOException when an illegal HTTP response is returned.
+        // Enabling retryOnConnectionFailure would treat that as a connection failure and try again,
+        // throwing a java.net.ConnectException if it still fails -- And ConnectException is a
+        // more reliable exception to handle when something like this goes wrong. See:
+        // https://github.com/relaycorp/relaynet-poweb-jvm/issues/61
+        preconfigured = OkHttpClient.Builder().retryOnConnectionFailure(true).build()
+    }
 ) : Closeable {
     internal var ktorClient = HttpClient(ktorEngine) {
         install(WebSockets)
