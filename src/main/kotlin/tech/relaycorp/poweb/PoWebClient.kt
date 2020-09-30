@@ -24,6 +24,7 @@ import kotlinx.coroutines.channels.ClosedReceiveChannelException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.flow
+import okhttp3.OkHttpClient
 import tech.relaycorp.poweb.handshake.Challenge
 import tech.relaycorp.poweb.handshake.InvalidChallengeException
 import tech.relaycorp.poweb.handshake.Response
@@ -55,7 +56,9 @@ public class PoWebClient internal constructor(
     internal val hostName: String,
     internal val port: Int,
     internal val useTls: Boolean,
-    ktorEngine: HttpClientEngine = OkHttp.create {}
+    ktorEngine: HttpClientEngine = OkHttp.create {
+        preconfigured = OkHttpClient.Builder().retryOnConnectionFailure(true).build()
+    }
 ) : Closeable {
     internal var ktorClient = HttpClient(ktorEngine) {
         install(WebSockets)
