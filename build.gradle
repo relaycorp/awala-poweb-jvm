@@ -74,6 +74,9 @@ kotlin {
 tasks.withType(KotlinCompile).all {
     kotlinOptions {
         jvmTarget = JavaVersion.VERSION_1_8
+        freeCompilerArgs += [
+            "-Xopt-in=kotlin.RequiresOptIn"
+        ]
     }
 }
 

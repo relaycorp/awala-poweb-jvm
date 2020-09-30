@@ -50,7 +50,7 @@ import java.security.PublicKey
  *
  * The underlying connection is created lazily.
  */
-@KtorExperimentalAPI
+@OptIn(KtorExperimentalAPI::class)
 public class PoWebClient internal constructor(
     internal val hostName: String,
     internal val port: Int,
