@@ -61,7 +61,7 @@ public class PoWebClient internal constructor(
         // Enabling retryOnConnectionFailure would treat that as a connection failure and try again,
         // throwing a java.net.ConnectException if it still fails -- And ConnectException is a
         // more reliable exception to handle when something like this goes wrong. See:
-        // https://github.com/relaycorp/relaynet-poweb-jvm/issues/61
+        // https://github.com/relaycorp/relaynet-gateway-android/issues/149
         preconfigured = OkHttpClient.Builder().retryOnConnectionFailure(true).build()
     }
 ) : Closeable {
