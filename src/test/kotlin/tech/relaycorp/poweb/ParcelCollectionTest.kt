@@ -19,15 +19,16 @@ import tech.relaycorp.poweb.websocket.MockKtorClientManager
 import tech.relaycorp.poweb.websocket.ParcelDeliveryAction
 import tech.relaycorp.poweb.websocket.SendTextMessageAction
 import tech.relaycorp.poweb.websocket.WebSocketTestCase
-import tech.relaycorp.relaynet.bindings.pdc.NonceSigner
+import tech.relaycorp.relaynet.bindings.pdc.DetachedSignatureType
+import tech.relaycorp.relaynet.bindings.pdc.Signer
 import tech.relaycorp.relaynet.bindings.pdc.StreamingMode
 import tech.relaycorp.relaynet.issueEndpointCertificate
 import tech.relaycorp.relaynet.messages.InvalidMessageException
 import tech.relaycorp.relaynet.messages.control.HandshakeResponse
-import tech.relaycorp.relaynet.messages.control.NonceSignature
+import tech.relaycorp.relaynet.testing.CertificationPath
+import tech.relaycorp.relaynet.testing.KeyPairSet
 import tech.relaycorp.relaynet.wrappers.generateRSAKeyPair
 import java.nio.charset.Charset
-import java.time.ZonedDateTime
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
@@ -39,7 +40,8 @@ class ParcelCollectionTest : WebSocketTestCase() {
     // Compute client on demand because getting the server port will start the server
     private val client by lazy { PoWebClient.initLocal(mockWebServer.port) }
 
-    private val signer = generateDummySigner()
+    private val signer =
+        Signer(CertificationPath.PRIVATE_ENDPOINT, KeyPairSet.PRIVATE_ENDPOINT.private)
 
     private val deliveryId = "the delivery id"
     private val parcelSerialized = "the parcel serialized".toByteArray()
@@ -132,12 +134,16 @@ class ParcelCollectionTest : WebSocketTestCase() {
             assertEquals(1, listener!!.receivedMessages.size)
             val response = HandshakeResponse.deserialize(listener!!.receivedMessages.first())
             val nonceSignatures = response.nonceSignatures
-            val signature1 = NonceSignature.deserialize(nonceSignatures[0])
-            assertEquals(nonce.asList(), signature1.nonce.asList())
-            assertEquals(signer.certificate, signature1.signerCertificate)
-            val signature2 = NonceSignature.deserialize(nonceSignatures[1])
-            assertEquals(nonce.asList(), signature2.nonce.asList())
-            assertEquals(signer2.certificate, signature2.signerCertificate)
+            DetachedSignatureType.NONCE.verify(
+                nonceSignatures[0],
+                nonce,
+                listOf(CertificationPath.PRIVATE_GW)
+            )
+            DetachedSignatureType.NONCE.verify(
+                nonceSignatures[1],
+                nonce,
+                listOf(CertificationPath.PRIVATE_GW)
+            )
         }
     }
 
@@ -394,13 +400,14 @@ class ParcelCollectionTest : WebSocketTestCase() {
         }
     }
 
-    private fun generateDummySigner(): NonceSigner {
+    private fun generateDummySigner(): Signer {
         val keyPair = generateRSAKeyPair()
         val certificate = issueEndpointCertificate(
             keyPair.public,
-            keyPair.private,
-            ZonedDateTime.now().plusDays(1)
+            KeyPairSet.PRIVATE_GW.private,
+            CertificationPath.PRIVATE_GW.expiryDate,
+            CertificationPath.PRIVATE_GW
         )
-        return NonceSigner(certificate, keyPair.private)
+        return Signer(certificate, keyPair.private)
     }
 }

@@ -10,15 +10,23 @@ import io.ktor.http.content.OutgoingContent
 import io.ktor.util.KtorExperimentalAPI
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runBlockingTest
+import org.bouncycastle.util.encoders.Base64
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import tech.relaycorp.relaynet.bindings.pdc.DetachedSignatureType
+import tech.relaycorp.relaynet.bindings.pdc.Signer
+import tech.relaycorp.relaynet.testing.CertificationPath
+import tech.relaycorp.relaynet.testing.KeyPairSet
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 @ExperimentalCoroutinesApi
 @KtorExperimentalAPI
 class ParcelDeliveryTest {
     private val parcelSerialized = "Let's say I'm the serialization of a parcel".toByteArray()
+    private val signer =
+        Signer(CertificationPath.PRIVATE_ENDPOINT, KeyPairSet.PRIVATE_ENDPOINT.private)
 
     @Test
     fun `Request should be made with HTTP POST`() = runBlockingTest {
@@ -28,7 +36,7 @@ class ParcelDeliveryTest {
             respondOk()
         }
 
-        client.use { client.deliverParcel(parcelSerialized) }
+        client.use { client.deliverParcel(parcelSerialized, signer) }
 
         assertEquals(HttpMethod.Post, method)
     }
@@ -41,7 +49,7 @@ class ParcelDeliveryTest {
             respondOk()
         }
 
-        client.use { client.deliverParcel(parcelSerialized) }
+        client.use { client.deliverParcel(parcelSerialized, signer) }
 
         assertEquals("${client.baseURL}/parcels", endpointURL)
     }
@@ -54,7 +62,7 @@ class ParcelDeliveryTest {
             respondOk()
         }
 
-        client.use { client.deliverParcel(parcelSerialized) }
+        client.use { client.deliverParcel(parcelSerialized, signer) }
 
         assertEquals(PoWebContentType.PARCEL.value, contentType)
     }
@@ -68,16 +76,37 @@ class ParcelDeliveryTest {
             respondOk()
         }
 
-        client.use { client.deliverParcel(parcelSerialized) }
+        client.use { client.deliverParcel(parcelSerialized, signer) }
 
         assertEquals(parcelSerialized.asList(), requestBody?.asList())
+    }
+
+    @Test
+    fun `Delivery signature should be in the request headers`() = runBlockingTest {
+        var authorizationHeader: String? = null
+        val client = makeTestClient { request: HttpRequestData ->
+            authorizationHeader = request.headers["Authorization"]
+            respondOk()
+        }
+
+        client.use { client.deliverParcel(parcelSerialized, signer) }
+
+        assertNotNull(authorizationHeader)
+        assertTrue(authorizationHeader!!.startsWith("Relaynet-Countersignature "))
+        val countersignatureBase64 = authorizationHeader!!.split(" ")[1]
+        val countersignature = Base64.decode(countersignatureBase64)
+        DetachedSignatureType.PARCEL_DELIVERY.verify(
+            countersignature,
+            parcelSerialized,
+            listOf(CertificationPath.PRIVATE_GW)
+        )
     }
 
     @Test
     fun `HTTP 20X should be regarded a successful delivery`() = runBlockingTest {
         val client = makeTestClient { respond("", HttpStatusCode.Accepted) }
 
-        client.use { client.deliverParcel(parcelSerialized) }
+        client.use { client.deliverParcel(parcelSerialized, signer) }
     }
 
     @Test
@@ -86,7 +115,7 @@ class ParcelDeliveryTest {
 
         client.use {
             val exception = assertThrows<RejectedParcelException> {
-                runBlockingTest { client.deliverParcel(parcelSerialized) }
+                runBlockingTest { client.deliverParcel(parcelSerialized, signer) }
             }
 
             assertEquals("The server rejected the parcel", exception.message)
@@ -99,7 +128,7 @@ class ParcelDeliveryTest {
 
         client.use {
             assertThrows<ClientBindingException> {
-                runBlockingTest { client.deliverParcel(parcelSerialized) }
+                runBlockingTest { client.deliverParcel(parcelSerialized, signer) }
             }
         }
     }

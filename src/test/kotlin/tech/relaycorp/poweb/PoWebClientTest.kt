@@ -31,6 +31,7 @@ import java.net.ConnectException
 import java.net.SocketException
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 @ExperimentalCoroutinesApi
@@ -212,6 +213,33 @@ class PoWebClientTest {
                 client.use { client.post(path, body) }
 
                 assertEquals(body.bytes().asList(), requestBody?.asList())
+            }
+
+            @Test
+            fun `No Authorization header should be set by default`() = runBlockingTest {
+                var authorizationHeader: String? = null
+                val client = makeTestClient { request: HttpRequestData ->
+                    authorizationHeader = request.headers["Authorization"]
+                    respondOk()
+                }
+
+                client.use { client.post(path, body) }
+
+                assertNull(authorizationHeader)
+            }
+
+            @Test
+            fun `Authorization should be set if requested`() = runBlockingTest {
+                val expectedAuthorizationHeader = "Foo bar"
+                var actualAuthorizationHeader: String? = null
+                val client = makeTestClient { request: HttpRequestData ->
+                    actualAuthorizationHeader = request.headers["Authorization"]
+                    respondOk()
+                }
+
+                client.use { client.post(path, body, expectedAuthorizationHeader) }
+
+                assertEquals(expectedAuthorizationHeader, actualAuthorizationHeader)
             }
         }
 
