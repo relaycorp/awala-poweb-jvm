@@ -133,17 +133,14 @@ class ParcelCollectionTest : WebSocketTestCase() {
 
             assertEquals(1, listener!!.receivedMessages.size)
             val response = HandshakeResponse.deserialize(listener!!.receivedMessages.first())
-            val nonceSignatures = response.nonceSignatures
-            DetachedSignatureType.NONCE.verify(
-                nonceSignatures[0],
-                nonce,
-                listOf(CertificationPath.PRIVATE_GW)
-            )
-            DetachedSignatureType.NONCE.verify(
-                nonceSignatures[1],
-                nonce,
-                listOf(CertificationPath.PRIVATE_GW)
-            )
+            assertEquals(2, response.nonceSignatures.size)
+            response.nonceSignatures.forEach {
+                DetachedSignatureType.NONCE.verify(
+                    it,
+                    nonce,
+                    listOf(CertificationPath.PRIVATE_GW)
+                )
+            }
         }
     }
 
