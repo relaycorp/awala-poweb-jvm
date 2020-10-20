@@ -121,6 +121,7 @@ public class PoWebClient internal constructor(
      * Deliver a parcel.
      *
      * @param parcelSerialized The serialization of the parcel
+     * @param deliverySigner The signer to sign this delivery
      */
     @Throws(
         ServerConnectionException::class,
