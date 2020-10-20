@@ -93,7 +93,7 @@ public class PoWebClient internal constructor(
     public suspend fun preRegisterNode(nodePublicKey: PublicKey): ByteArray {
         val keyDigest = getSHA256DigestHex(nodePublicKey.encoded)
         val response =
-            post("/pre-registrations", TextContent(keyDigest, PRE_REGISTRATION_CONTENT_TYPE), null)
+            post("/pre-registrations", TextContent(keyDigest, PRE_REGISTRATION_CONTENT_TYPE))
 
         requireContentType(PNRA_CONTENT_TYPE, response.contentType())
 
@@ -106,7 +106,7 @@ public class PoWebClient internal constructor(
      * @param pnrrSerialized The Private Node Registration Request
      */
     public suspend fun registerNode(pnrrSerialized: ByteArray): PrivateNodeRegistration {
-        val response = post("/nodes", ByteArrayContent(pnrrSerialized, PNRR_CONTENT_TYPE), null)
+        val response = post("/nodes", ByteArrayContent(pnrrSerialized, PNRR_CONTENT_TYPE))
 
         requireContentType(PNR_CONTENT_TYPE, response.contentType())
 
