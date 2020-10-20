@@ -25,13 +25,12 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.flow
 import okhttp3.OkHttpClient
-import tech.relaycorp.poweb.handshake.Challenge
-import tech.relaycorp.poweb.handshake.InvalidChallengeException
-import tech.relaycorp.poweb.handshake.Response
 import tech.relaycorp.relaynet.bindings.pdc.NonceSigner
 import tech.relaycorp.relaynet.bindings.pdc.ParcelCollection
 import tech.relaycorp.relaynet.bindings.pdc.StreamingMode
 import tech.relaycorp.relaynet.messages.InvalidMessageException
+import tech.relaycorp.relaynet.messages.control.HandshakeChallenge
+import tech.relaycorp.relaynet.messages.control.HandshakeResponse
 import tech.relaycorp.relaynet.messages.control.ParcelDelivery
 import tech.relaycorp.relaynet.messages.control.PrivateNodeRegistration
 import tech.relaycorp.relaynet.wrappers.x509.Certificate
@@ -313,12 +312,12 @@ public class PoWebClient internal constructor(
 private suspend fun DefaultClientWebSocketSession.handshake(nonceSigners: Array<NonceSigner>) {
     val challengeRaw = incoming.receive()
     val challenge = try {
-        Challenge.deserialize(challengeRaw.readBytes())
-    } catch (exc: InvalidChallengeException) {
+        HandshakeChallenge.deserialize(challengeRaw.readBytes())
+    } catch (exc: InvalidMessageException) {
         close(CloseReason(CloseReason.Codes.VIOLATED_POLICY, ""))
         throw ServerBindingException("Server sent an invalid handshake challenge", exc)
     }
-    val nonceSignatures = nonceSigners.map { it.sign(challenge.nonce) }.toTypedArray()
-    val response = Response(nonceSignatures)
+    val nonceSignatures = nonceSigners.map { it.sign(challenge.nonce) }.toList()
+    val response = HandshakeResponse(nonceSignatures)
     outgoing.send(Frame.Binary(true, response.serialize()))
 }

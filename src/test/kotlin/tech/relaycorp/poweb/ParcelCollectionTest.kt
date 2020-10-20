@@ -12,7 +12,6 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import tech.relaycorp.poweb.handshake.InvalidChallengeException
 import tech.relaycorp.poweb.websocket.ActionSequence
 import tech.relaycorp.poweb.websocket.ChallengeAction
 import tech.relaycorp.poweb.websocket.CloseConnectionAction
@@ -24,6 +23,7 @@ import tech.relaycorp.relaynet.bindings.pdc.NonceSigner
 import tech.relaycorp.relaynet.bindings.pdc.StreamingMode
 import tech.relaycorp.relaynet.issueEndpointCertificate
 import tech.relaycorp.relaynet.messages.InvalidMessageException
+import tech.relaycorp.relaynet.messages.control.HandshakeResponse
 import tech.relaycorp.relaynet.messages.control.NonceSignature
 import tech.relaycorp.relaynet.wrappers.generateRSAKeyPair
 import java.nio.charset.Charset
@@ -95,7 +95,7 @@ class ParcelCollectionTest : WebSocketTestCase() {
                 }
 
                 assertEquals("Server sent an invalid handshake challenge", exception.message)
-                assertTrue(exception.cause is InvalidChallengeException)
+                assertTrue(exception.cause is InvalidMessageException)
             }
 
             awaitForConnectionClosure()
@@ -130,9 +130,7 @@ class ParcelCollectionTest : WebSocketTestCase() {
             awaitForConnectionClosure()
 
             assertEquals(1, listener!!.receivedMessages.size)
-            val response = tech.relaycorp.poweb.handshake.Response.deserialize(
-                listener!!.receivedMessages.first()
-            )
+            val response = HandshakeResponse.deserialize(listener!!.receivedMessages.first())
             val nonceSignatures = response.nonceSignatures
             val signature1 = NonceSignature.deserialize(nonceSignatures[0])
             assertEquals(nonce.asList(), signature1.nonce.asList())
@@ -401,7 +399,8 @@ class ParcelCollectionTest : WebSocketTestCase() {
         val certificate = issueEndpointCertificate(
             keyPair.public,
             keyPair.private,
-            ZonedDateTime.now().plusDays(1))
+            ZonedDateTime.now().plusDays(1)
+        )
         return NonceSigner(certificate, keyPair.private)
     }
 }
