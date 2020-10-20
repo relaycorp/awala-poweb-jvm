@@ -25,8 +25,10 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.flow
 import okhttp3.OkHttpClient
-import tech.relaycorp.relaynet.bindings.pdc.NonceSigner
+import org.bouncycastle.util.encoders.Base64
+import tech.relaycorp.relaynet.bindings.pdc.DetachedSignatureType
 import tech.relaycorp.relaynet.bindings.pdc.ParcelCollection
+import tech.relaycorp.relaynet.bindings.pdc.Signer
 import tech.relaycorp.relaynet.bindings.pdc.StreamingMode
 import tech.relaycorp.relaynet.messages.InvalidMessageException
 import tech.relaycorp.relaynet.messages.control.HandshakeChallenge
@@ -119,6 +121,7 @@ public class PoWebClient internal constructor(
      * Deliver a parcel.
      *
      * @param parcelSerialized The serialization of the parcel
+     * @param deliverySigner The signer to sign this delivery
      */
     @Throws(
         ServerConnectionException::class,
@@ -126,10 +129,16 @@ public class PoWebClient internal constructor(
         RejectedParcelException::class,
         ClientBindingException::class
     )
-    public suspend fun deliverParcel(parcelSerialized: ByteArray) {
+    public suspend fun deliverParcel(parcelSerialized: ByteArray, deliverySigner: Signer) {
+        val deliverySignature = deliverySigner.sign(
+            parcelSerialized,
+            DetachedSignatureType.PARCEL_DELIVERY
+        )
+        val deliverySignatureBase64 = Base64.toBase64String(deliverySignature)
+        val authorizationHeader = "Relaynet-Countersignature $deliverySignatureBase64"
         val body = ByteArrayContent(parcelSerialized, PARCEL_CONTENT_TYPE)
         try {
-            post("/parcels", body)
+            post("/parcels", body, authorizationHeader)
         } catch (exc: ClientBindingException) {
             throw if (exc.statusCode == 403)
                 RejectedParcelException("The server rejected the parcel")
@@ -150,7 +159,7 @@ public class PoWebClient internal constructor(
         NonceSignerException::class
     )
     public suspend fun collectParcels(
-        nonceSigners: Array<NonceSigner>,
+        nonceSigners: Array<Signer>,
         streamingMode: StreamingMode = StreamingMode.KeepAlive
     ): Flow<ParcelCollection> = flow {
         if (nonceSigners.isEmpty()) {
@@ -212,10 +221,17 @@ public class PoWebClient internal constructor(
         ServerBindingException::class,
         ClientBindingException::class
     )
-    internal suspend fun post(path: String, requestBody: OutgoingContent): HttpResponse {
+    internal suspend fun post(
+        path: String,
+        requestBody: OutgoingContent,
+        authorizationHeader: String? = null
+    ): HttpResponse {
         val url = "$baseURL$path"
         val response: HttpResponse = try {
             ktorClient.post(url) {
+                if (authorizationHeader != null) {
+                    header("Authorization", authorizationHeader)
+                }
                 body = requestBody
             }
         } catch (exc: SocketException) {
@@ -309,7 +325,7 @@ public class PoWebClient internal constructor(
 }
 
 @Throws(PoWebException::class)
-private suspend fun DefaultClientWebSocketSession.handshake(nonceSigners: Array<NonceSigner>) {
+private suspend fun DefaultClientWebSocketSession.handshake(nonceSigners: Array<Signer>) {
     val challengeRaw = incoming.receive()
     val challenge = try {
         HandshakeChallenge.deserialize(challengeRaw.readBytes())
@@ -317,7 +333,8 @@ private suspend fun DefaultClientWebSocketSession.handshake(nonceSigners: Array<
         close(CloseReason(CloseReason.Codes.VIOLATED_POLICY, ""))
         throw ServerBindingException("Server sent an invalid handshake challenge", exc)
     }
-    val nonceSignatures = nonceSigners.map { it.sign(challenge.nonce) }.toList()
+    val nonceSignatures =
+        nonceSigners.map { it.sign(challenge.nonce, DetachedSignatureType.NONCE) }.toList()
     val response = HandshakeResponse(nonceSignatures)
     outgoing.send(Frame.Binary(true, response.serialize()))
 }
