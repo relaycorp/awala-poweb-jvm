@@ -4,7 +4,7 @@ import io.ktor.http.cio.websocket.CloseReason
 import okhttp3.WebSocket
 import okhttp3.mockwebserver.MockWebServer
 import okio.ByteString.Companion.toByteString
-import tech.relaycorp.poweb.handshake.Challenge
+import tech.relaycorp.relaynet.messages.control.HandshakeChallenge
 import tech.relaycorp.relaynet.messages.control.ParcelDelivery
 
 sealed class MockWebSocketAction {
@@ -29,7 +29,8 @@ class SendTextMessageAction(private val message: String) : MockWebSocketAction()
     }
 }
 
-class ChallengeAction(nonce: ByteArray) : SendBinaryMessageAction(Challenge(nonce).serialize())
+class ChallengeAction(nonce: ByteArray) :
+    SendBinaryMessageAction(HandshakeChallenge(nonce).serialize())
 
 class ParcelDeliveryAction(deliveryId: String, parcelSerialized: ByteArray) :
     SendBinaryMessageAction(ParcelDelivery(deliveryId, parcelSerialized).serialize())
