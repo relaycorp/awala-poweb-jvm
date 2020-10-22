@@ -117,13 +117,13 @@ class RegistrationTest {
                     respond(authorizationSerialized, headers = responseHeaders)
                 }
 
-            client.use {
-                assertEquals(
-                    authorizationSerialized.asList(),
-                    it.preRegisterNode(publicKey).asList()
-                )
+                client.use {
+                    assertEquals(
+                        authorizationSerialized.asList(),
+                        it.preRegisterNode(publicKey).asList()
+                    )
+                }
             }
-        }
     }
 
     @Nested
