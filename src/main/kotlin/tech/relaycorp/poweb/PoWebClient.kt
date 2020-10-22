@@ -225,7 +225,8 @@ public class PoWebClient internal constructor(
     @Throws(
         ServerConnectionException::class,
         ServerBindingException::class,
-        ClientBindingException::class
+        ClientBindingException::class,
+        ForbiddenException::class
     )
     internal suspend fun post(
         path: String,
