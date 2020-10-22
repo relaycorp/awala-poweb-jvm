@@ -20,6 +20,9 @@ import tech.relaycorp.poweb.websocket.ParcelDeliveryAction
 import tech.relaycorp.poweb.websocket.SendTextMessageAction
 import tech.relaycorp.poweb.websocket.WebSocketTestCase
 import tech.relaycorp.relaynet.bindings.pdc.DetachedSignatureType
+import tech.relaycorp.relaynet.bindings.pdc.NonceSignerException
+import tech.relaycorp.relaynet.bindings.pdc.ServerBindingException
+import tech.relaycorp.relaynet.bindings.pdc.ServerConnectionException
 import tech.relaycorp.relaynet.bindings.pdc.Signer
 import tech.relaycorp.relaynet.bindings.pdc.StreamingMode
 import tech.relaycorp.relaynet.issueEndpointCertificate

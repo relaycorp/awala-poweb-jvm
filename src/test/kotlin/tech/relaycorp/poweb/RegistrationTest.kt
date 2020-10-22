@@ -12,6 +12,7 @@ import kotlinx.coroutines.test.runBlockingTest
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import tech.relaycorp.relaynet.bindings.pdc.ServerBindingException
 import tech.relaycorp.relaynet.messages.InvalidMessageException
 import tech.relaycorp.relaynet.messages.control.PrivateNodeRegistration
 import tech.relaycorp.relaynet.testing.CertificationPath
@@ -109,19 +110,22 @@ class RegistrationTest {
         }
 
         @Test
-        fun `Authorization should be output serialized if request succeeds`() = runBlockingTest {
-            val authorizationSerialized = "This is the PNRA".toByteArray()
-            val client = makeTestClient {
-                respond(authorizationSerialized, headers = responseHeaders)
-            }
+        fun `Registration request should be output if pre-registration succeeds`() =
+            runBlockingTest {
+                val authorizationSerialized = "This is the PNRA".toByteArray()
+                val client = makeTestClient {
+                    respond(authorizationSerialized, headers = responseHeaders)
+                }
 
-            client.use {
-                assertEquals(
-                    authorizationSerialized.asList(),
-                    it.preRegisterNode(publicKey).asList()
-                )
+                client.use {
+                    val registrationRequest = it.preRegisterNode(publicKey)
+                    assertEquals(publicKey, registrationRequest.privateNodePublicKey)
+                    assertEquals(
+                        authorizationSerialized.asList(),
+                        registrationRequest.pnraSerialized.asList()
+                    )
+                }
             }
-        }
     }
 
     @Nested

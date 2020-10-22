@@ -26,8 +26,15 @@ import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.flow
 import okhttp3.OkHttpClient
 import org.bouncycastle.util.encoders.Base64
+import tech.relaycorp.relaynet.bindings.pdc.ClientBindingException
 import tech.relaycorp.relaynet.bindings.pdc.DetachedSignatureType
+import tech.relaycorp.relaynet.bindings.pdc.NonceSignerException
+import tech.relaycorp.relaynet.bindings.pdc.PDCClient
 import tech.relaycorp.relaynet.bindings.pdc.ParcelCollection
+import tech.relaycorp.relaynet.bindings.pdc.RejectedParcelException
+import tech.relaycorp.relaynet.bindings.pdc.ServerBindingException
+import tech.relaycorp.relaynet.bindings.pdc.ServerConnectionException
+import tech.relaycorp.relaynet.bindings.pdc.ServerException
 import tech.relaycorp.relaynet.bindings.pdc.Signer
 import tech.relaycorp.relaynet.bindings.pdc.StreamingMode
 import tech.relaycorp.relaynet.messages.InvalidMessageException
@@ -35,8 +42,8 @@ import tech.relaycorp.relaynet.messages.control.HandshakeChallenge
 import tech.relaycorp.relaynet.messages.control.HandshakeResponse
 import tech.relaycorp.relaynet.messages.control.ParcelDelivery
 import tech.relaycorp.relaynet.messages.control.PrivateNodeRegistration
+import tech.relaycorp.relaynet.messages.control.PrivateNodeRegistrationRequest
 import tech.relaycorp.relaynet.wrappers.x509.Certificate
-import java.io.Closeable
 import java.io.EOFException
 import java.net.ConnectException
 import java.net.SocketException
@@ -65,7 +72,7 @@ public class PoWebClient internal constructor(
         // https://github.com/relaycorp/relaynet-gateway-android/issues/149
         preconfigured = OkHttpClient.Builder().retryOnConnectionFailure(true).build()
     }
-) : Closeable {
+) : PDCClient {
     internal var ktorClient = HttpClient(ktorEngine) {
         install(WebSockets)
     }
@@ -86,18 +93,20 @@ public class PoWebClient internal constructor(
      * @param nodePublicKey The public key of the private node requesting authorization
      */
     @Throws(
-        ServerConnectionException::class,
-        ServerBindingException::class,
+        ServerException::class,
         ClientBindingException::class
     )
-    public suspend fun preRegisterNode(nodePublicKey: PublicKey): ByteArray {
+    public override suspend fun preRegisterNode(
+        nodePublicKey: PublicKey
+    ): PrivateNodeRegistrationRequest {
         val keyDigest = getSHA256DigestHex(nodePublicKey.encoded)
         val response =
             post("/pre-registrations", TextContent(keyDigest, PRE_REGISTRATION_CONTENT_TYPE))
 
         requireContentType(PNRA_CONTENT_TYPE, response.contentType())
 
-        return response.content.toByteArray()
+        val authorizationSerialized = response.content.toByteArray()
+        return PrivateNodeRegistrationRequest(nodePublicKey, authorizationSerialized)
     }
 
     /**
@@ -105,7 +114,11 @@ public class PoWebClient internal constructor(
      *
      * @param pnrrSerialized The Private Node Registration Request
      */
-    public suspend fun registerNode(pnrrSerialized: ByteArray): PrivateNodeRegistration {
+    @Throws(
+        ServerException::class,
+        ClientBindingException::class
+    )
+    public override suspend fun registerNode(pnrrSerialized: ByteArray): PrivateNodeRegistration {
         val response = post("/nodes", ByteArrayContent(pnrrSerialized, PNRR_CONTENT_TYPE))
 
         requireContentType(PNR_CONTENT_TYPE, response.contentType())
@@ -124,12 +137,11 @@ public class PoWebClient internal constructor(
      * @param deliverySigner The signer to sign this delivery
      */
     @Throws(
-        ServerConnectionException::class,
-        ServerBindingException::class,
+        ServerException::class,
         RejectedParcelException::class,
         ClientBindingException::class
     )
-    public suspend fun deliverParcel(parcelSerialized: ByteArray, deliverySigner: Signer) {
+    public override suspend fun deliverParcel(parcelSerialized: ByteArray, deliverySigner: Signer) {
         val deliverySignature = deliverySigner.sign(
             parcelSerialized,
             DetachedSignatureType.PARCEL_DELIVERY
@@ -139,11 +151,8 @@ public class PoWebClient internal constructor(
         val body = ByteArrayContent(parcelSerialized, PARCEL_CONTENT_TYPE)
         try {
             post("/parcels", body, authorizationHeader)
-        } catch (exc: ClientBindingException) {
-            throw if (exc.statusCode == 403)
-                RejectedParcelException("The server rejected the parcel")
-            else
-                exc
+        } catch (_: ForbiddenException) {
+            throw RejectedParcelException("The server rejected the parcel")
         }
     }
 
@@ -154,13 +163,13 @@ public class PoWebClient internal constructor(
      * @param streamingMode Which streaming mode to ask the server to use
      */
     @Throws(
-        ServerConnectionException::class,
-        ServerBindingException::class,
+        ServerException::class,
+        ClientBindingException::class,
         NonceSignerException::class
     )
-    public suspend fun collectParcels(
+    public override suspend fun collectParcels(
         nonceSigners: Array<Signer>,
-        streamingMode: StreamingMode = StreamingMode.KeepAlive
+        streamingMode: StreamingMode
     ): Flow<ParcelCollection> = flow {
         if (nonceSigners.isEmpty()) {
             throw NonceSignerException("At least one nonce signer must be specified")
@@ -194,13 +203,14 @@ public class PoWebClient internal constructor(
         }
     }
 
-    @Throws(PoWebException::class)
+    @Throws(ServerBindingException::class)
     private suspend fun collectAndAckParcels(
         webSocketSession: DefaultClientWebSocketSession,
         flowCollector: FlowCollector<ParcelCollection>,
         trustedCertificates: List<Certificate>
     ) {
         for (frame in webSocketSession.incoming) {
+            println("frame in webSocketSession.incoming ")
             val delivery = try {
                 ParcelDelivery.deserialize(frame.readBytes())
             } catch (exc: InvalidMessageException) {
@@ -219,7 +229,8 @@ public class PoWebClient internal constructor(
     @Throws(
         ServerConnectionException::class,
         ServerBindingException::class,
-        ClientBindingException::class
+        ClientBindingException::class,
+        ForbiddenException::class
     )
     internal suspend fun post(
         path: String,
@@ -244,9 +255,9 @@ public class PoWebClient internal constructor(
             return response
         }
         throw when (response.status.value) {
+            403 -> ForbiddenException("Got an HTTP 403 response")
             in 400..499 -> ClientBindingException(
-                "The server reports that the client violated binding (${response.status})",
-                response.status.value
+                "The server reports that the client violated binding (${response.status})"
             )
             in 500..599 -> ServerConnectionException(
                 "The server was unable to fulfil the request (${response.status})"
@@ -324,7 +335,7 @@ public class PoWebClient internal constructor(
     }
 }
 
-@Throws(PoWebException::class)
+@Throws(ServerBindingException::class)
 private suspend fun DefaultClientWebSocketSession.handshake(nonceSigners: Array<Signer>) {
     val challengeRaw = incoming.receive()
     val challenge = try {
