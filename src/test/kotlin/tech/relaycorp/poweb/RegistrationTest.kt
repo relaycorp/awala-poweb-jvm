@@ -110,11 +110,12 @@ class RegistrationTest {
         }
 
         @Test
-        fun `Authorization should be output serialized if request succeeds`() = runBlockingTest {
-            val authorizationSerialized = "This is the PNRA".toByteArray()
-            val client = makeTestClient {
-                respond(authorizationSerialized, headers = responseHeaders)
-            }
+        fun `Registration request should be output if pre-registration succeeds`() =
+            runBlockingTest {
+                val authorizationSerialized = "This is the PNRA".toByteArray()
+                val client = makeTestClient {
+                    respond(authorizationSerialized, headers = responseHeaders)
+                }
 
             client.use {
                 assertEquals(
