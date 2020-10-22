@@ -29,6 +29,7 @@ import org.bouncycastle.util.encoders.Base64
 import tech.relaycorp.relaynet.bindings.pdc.ClientBindingException
 import tech.relaycorp.relaynet.bindings.pdc.DetachedSignatureType
 import tech.relaycorp.relaynet.bindings.pdc.NonceSignerException
+import tech.relaycorp.relaynet.bindings.pdc.PDCClient
 import tech.relaycorp.relaynet.bindings.pdc.ParcelCollection
 import tech.relaycorp.relaynet.bindings.pdc.RejectedParcelException
 import tech.relaycorp.relaynet.bindings.pdc.ServerBindingException
@@ -41,8 +42,8 @@ import tech.relaycorp.relaynet.messages.control.HandshakeChallenge
 import tech.relaycorp.relaynet.messages.control.HandshakeResponse
 import tech.relaycorp.relaynet.messages.control.ParcelDelivery
 import tech.relaycorp.relaynet.messages.control.PrivateNodeRegistration
+import tech.relaycorp.relaynet.messages.control.PrivateNodeRegistrationRequest
 import tech.relaycorp.relaynet.wrappers.x509.Certificate
-import java.io.Closeable
 import java.io.EOFException
 import java.net.ConnectException
 import java.net.SocketException
@@ -71,7 +72,7 @@ public class PoWebClient internal constructor(
         // https://github.com/relaycorp/relaynet-gateway-android/issues/149
         preconfigured = OkHttpClient.Builder().retryOnConnectionFailure(true).build()
     }
-) : Closeable {
+) : PDCClient {
     internal var ktorClient = HttpClient(ktorEngine) {
         install(WebSockets)
     }
@@ -95,14 +96,17 @@ public class PoWebClient internal constructor(
         ServerException::class,
         ClientBindingException::class
     )
-    public suspend fun preRegisterNode(nodePublicKey: PublicKey): ByteArray {
+    public override suspend fun preRegisterNode(
+        nodePublicKey: PublicKey
+    ): PrivateNodeRegistrationRequest {
         val keyDigest = getSHA256DigestHex(nodePublicKey.encoded)
         val response =
             post("/pre-registrations", TextContent(keyDigest, PRE_REGISTRATION_CONTENT_TYPE))
 
         requireContentType(PNRA_CONTENT_TYPE, response.contentType())
 
-        return response.content.toByteArray()
+        val authorizationSerialized = response.content.toByteArray()
+        return PrivateNodeRegistrationRequest(nodePublicKey, authorizationSerialized)
     }
 
     /**
@@ -114,7 +118,7 @@ public class PoWebClient internal constructor(
         ServerException::class,
         ClientBindingException::class
     )
-    public suspend fun registerNode(pnrrSerialized: ByteArray): PrivateNodeRegistration {
+    public override suspend fun registerNode(pnrrSerialized: ByteArray): PrivateNodeRegistration {
         val response = post("/nodes", ByteArrayContent(pnrrSerialized, PNRR_CONTENT_TYPE))
 
         requireContentType(PNR_CONTENT_TYPE, response.contentType())
@@ -137,7 +141,7 @@ public class PoWebClient internal constructor(
         RejectedParcelException::class,
         ClientBindingException::class
     )
-    public suspend fun deliverParcel(parcelSerialized: ByteArray, deliverySigner: Signer) {
+    public override suspend fun deliverParcel(parcelSerialized: ByteArray, deliverySigner: Signer) {
         val deliverySignature = deliverySigner.sign(
             parcelSerialized,
             DetachedSignatureType.PARCEL_DELIVERY
@@ -163,9 +167,9 @@ public class PoWebClient internal constructor(
         ServerBindingException::class,
         NonceSignerException::class
     )
-    public suspend fun collectParcels(
+    public override suspend fun collectParcels(
         nonceSigners: Array<Signer>,
-        streamingMode: StreamingMode = StreamingMode.KeepAlive
+        streamingMode: StreamingMode
     ): Flow<ParcelCollection> = flow {
         if (nonceSigners.isEmpty()) {
             throw NonceSignerException("At least one nonce signer must be specified")

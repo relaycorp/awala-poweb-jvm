@@ -118,9 +118,11 @@ class RegistrationTest {
                 }
 
                 client.use {
+                    val registrationRequest = it.preRegisterNode(publicKey)
+                    assertEquals(publicKey, registrationRequest.privateNodePublicKey)
                     assertEquals(
                         authorizationSerialized.asList(),
-                        it.preRegisterNode(publicKey).asList()
+                        registrationRequest.pnraSerialized.asList()
                     )
                 }
             }
