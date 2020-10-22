@@ -112,7 +112,7 @@ class ParcelDeliveryTest {
     }
 
     @Test
-    fun `HTTP 403 should throw a RefusedParcelException`() {
+    fun `HTTP 403 should throw a RejectedParcelException`() {
         val client = makeTestClient { respondError(HttpStatusCode.Forbidden) }
 
         client.use {

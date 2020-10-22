@@ -251,6 +251,7 @@ public class PoWebClient internal constructor(
             return response
         }
         throw when (response.status.value) {
+            403 -> ForbiddenException("Got an HTTP 403 response")
             in 400..499 -> ClientBindingException(
                 "The server reports that the client violated binding (${response.status})"
             )
