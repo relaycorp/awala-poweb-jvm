@@ -163,8 +163,8 @@ public class PoWebClient internal constructor(
      * @param streamingMode Which streaming mode to ask the server to use
      */
     @Throws(
-        ServerConnectionException::class,
-        ServerBindingException::class,
+        ServerException::class,
+        ClientBindingException::class,
         NonceSignerException::class
     )
     public override suspend fun collectParcels(
