@@ -26,6 +26,9 @@ import tech.relaycorp.poweb.websocket.CloseConnectionAction
 import tech.relaycorp.poweb.websocket.MockKtorClientManager
 import tech.relaycorp.poweb.websocket.ServerShutdownAction
 import tech.relaycorp.poweb.websocket.WebSocketTestCase
+import tech.relaycorp.relaynet.bindings.pdc.ClientBindingException
+import tech.relaycorp.relaynet.bindings.pdc.ServerBindingException
+import tech.relaycorp.relaynet.bindings.pdc.ServerConnectionException
 import java.io.EOFException
 import java.net.ConnectException
 import java.net.SocketException
@@ -282,7 +285,6 @@ class PoWebClientTest {
                             "(${HttpStatusCode.BadRequest})",
                         exception.message
                     )
-                    assertEquals(HttpStatusCode.BadRequest.value, exception.statusCode)
                 }
             }
 

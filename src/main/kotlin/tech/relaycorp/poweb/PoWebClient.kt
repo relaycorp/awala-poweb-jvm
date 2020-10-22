@@ -26,8 +26,14 @@ import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.flow
 import okhttp3.OkHttpClient
 import org.bouncycastle.util.encoders.Base64
+import tech.relaycorp.relaynet.bindings.pdc.ClientBindingException
 import tech.relaycorp.relaynet.bindings.pdc.DetachedSignatureType
+import tech.relaycorp.relaynet.bindings.pdc.NonceSignerException
 import tech.relaycorp.relaynet.bindings.pdc.ParcelCollection
+import tech.relaycorp.relaynet.bindings.pdc.RejectedParcelException
+import tech.relaycorp.relaynet.bindings.pdc.ServerBindingException
+import tech.relaycorp.relaynet.bindings.pdc.ServerConnectionException
+import tech.relaycorp.relaynet.bindings.pdc.ServerException
 import tech.relaycorp.relaynet.bindings.pdc.Signer
 import tech.relaycorp.relaynet.bindings.pdc.StreamingMode
 import tech.relaycorp.relaynet.messages.InvalidMessageException
@@ -86,8 +92,7 @@ public class PoWebClient internal constructor(
      * @param nodePublicKey The public key of the private node requesting authorization
      */
     @Throws(
-        ServerConnectionException::class,
-        ServerBindingException::class,
+        ServerException::class,
         ClientBindingException::class
     )
     public suspend fun preRegisterNode(nodePublicKey: PublicKey): ByteArray {
@@ -105,6 +110,10 @@ public class PoWebClient internal constructor(
      *
      * @param pnrrSerialized The Private Node Registration Request
      */
+    @Throws(
+        ServerException::class,
+        ClientBindingException::class
+    )
     public suspend fun registerNode(pnrrSerialized: ByteArray): PrivateNodeRegistration {
         val response = post("/nodes", ByteArrayContent(pnrrSerialized, PNRR_CONTENT_TYPE))
 
@@ -124,8 +133,7 @@ public class PoWebClient internal constructor(
      * @param deliverySigner The signer to sign this delivery
      */
     @Throws(
-        ServerConnectionException::class,
-        ServerBindingException::class,
+        ServerException::class,
         RejectedParcelException::class,
         ClientBindingException::class
     )
@@ -139,11 +147,8 @@ public class PoWebClient internal constructor(
         val body = ByteArrayContent(parcelSerialized, PARCEL_CONTENT_TYPE)
         try {
             post("/parcels", body, authorizationHeader)
-        } catch (exc: ClientBindingException) {
-            throw if (exc.statusCode == 403)
-                RejectedParcelException("The server rejected the parcel")
-            else
-                exc
+        } catch (_: ForbiddenException) {
+            throw RejectedParcelException("The server rejected the parcel")
         }
     }
 
@@ -194,13 +199,14 @@ public class PoWebClient internal constructor(
         }
     }
 
-    @Throws(PoWebException::class)
+    @Throws(ServerBindingException::class)
     private suspend fun collectAndAckParcels(
         webSocketSession: DefaultClientWebSocketSession,
         flowCollector: FlowCollector<ParcelCollection>,
         trustedCertificates: List<Certificate>
     ) {
         for (frame in webSocketSession.incoming) {
+            println("frame in webSocketSession.incoming ")
             val delivery = try {
                 ParcelDelivery.deserialize(frame.readBytes())
             } catch (exc: InvalidMessageException) {
@@ -245,8 +251,7 @@ public class PoWebClient internal constructor(
         }
         throw when (response.status.value) {
             in 400..499 -> ClientBindingException(
-                "The server reports that the client violated binding (${response.status})",
-                response.status.value
+                "The server reports that the client violated binding (${response.status})"
             )
             in 500..599 -> ServerConnectionException(
                 "The server was unable to fulfil the request (${response.status})"
@@ -324,7 +329,7 @@ public class PoWebClient internal constructor(
     }
 }
 
-@Throws(PoWebException::class)
+@Throws(ServerBindingException::class)
 private suspend fun DefaultClientWebSocketSession.handshake(nonceSigners: Array<Signer>) {
     val challengeRaw = incoming.receive()
     val challenge = try {

@@ -13,7 +13,9 @@ import kotlinx.coroutines.test.runBlockingTest
 import org.bouncycastle.util.encoders.Base64
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import tech.relaycorp.relaynet.bindings.pdc.ClientBindingException
 import tech.relaycorp.relaynet.bindings.pdc.DetachedSignatureType
+import tech.relaycorp.relaynet.bindings.pdc.RejectedParcelException
 import tech.relaycorp.relaynet.bindings.pdc.Signer
 import tech.relaycorp.relaynet.testing.CertificationPath
 import tech.relaycorp.relaynet.testing.KeyPairSet
