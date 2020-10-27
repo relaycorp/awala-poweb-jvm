@@ -30,7 +30,7 @@ dependencies {
 
     implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlinVersion")
 
-    api('tech.relaycorp:relaynet:1.38.3')
+    api('tech.relaycorp:relaynet:1.38.4')
     testImplementation('tech.relaycorp:relaynet-testing:1.1.0')
 
     // We're depending on BouncyCastle just so we can use a base64 encoder on Android 21+. See:
