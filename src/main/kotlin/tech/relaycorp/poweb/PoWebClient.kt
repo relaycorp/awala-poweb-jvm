@@ -105,7 +105,7 @@ public class PoWebClient internal constructor(
 
         requireContentType(PNRA_CONTENT_TYPE, response.contentType())
 
-        val authorizationSerialized = response.readBytes()
+        val authorizationSerialized = response.readBytes().also { close() }
         return PrivateNodeRegistrationRequest(nodePublicKey, authorizationSerialized)
     }
 
@@ -124,7 +124,7 @@ public class PoWebClient internal constructor(
         requireContentType(PNR_CONTENT_TYPE, response.contentType())
 
         return try {
-            PrivateNodeRegistration.deserialize(response.readBytes())
+            PrivateNodeRegistration.deserialize(response.readBytes().also { close() })
         } catch (exc: InvalidMessageException) {
             throw ServerBindingException("The server returned a malformed registration", exc)
         }
