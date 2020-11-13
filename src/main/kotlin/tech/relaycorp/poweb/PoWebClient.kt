@@ -9,6 +9,7 @@ import io.ktor.client.features.websocket.webSocket
 import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.statement.HttpResponse
+import io.ktor.client.statement.readBytes
 import io.ktor.http.ContentType
 import io.ktor.http.cio.websocket.CloseReason
 import io.ktor.http.cio.websocket.Frame
@@ -19,7 +20,6 @@ import io.ktor.http.content.OutgoingContent
 import io.ktor.http.content.TextContent
 import io.ktor.http.contentType
 import io.ktor.util.KtorExperimentalAPI
-import io.ktor.util.toByteArray
 import kotlinx.coroutines.channels.ClosedReceiveChannelException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
@@ -105,7 +105,7 @@ public class PoWebClient internal constructor(
 
         requireContentType(PNRA_CONTENT_TYPE, response.contentType())
 
-        val authorizationSerialized = response.content.toByteArray()
+        val authorizationSerialized = response.readBytes()
         return PrivateNodeRegistrationRequest(nodePublicKey, authorizationSerialized)
     }
 
@@ -124,7 +124,7 @@ public class PoWebClient internal constructor(
         requireContentType(PNR_CONTENT_TYPE, response.contentType())
 
         return try {
-            PrivateNodeRegistration.deserialize(response.content.toByteArray())
+            PrivateNodeRegistration.deserialize(response.readBytes())
         } catch (exc: InvalidMessageException) {
             throw ServerBindingException("The server returned a malformed registration", exc)
         }
