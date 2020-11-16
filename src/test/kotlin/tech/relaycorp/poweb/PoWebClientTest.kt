@@ -32,6 +32,7 @@ import tech.relaycorp.relaynet.bindings.pdc.ServerConnectionException
 import java.io.EOFException
 import java.net.ConnectException
 import java.net.SocketException
+import java.net.UnknownHostException
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
@@ -303,6 +304,21 @@ class PoWebClientTest {
                         exception.message
                     )
                 }
+            }
+        }
+
+        @Test
+        fun `Failing to resolve DNS record should throw a ServerConnectionException`() {
+            // Use a real client to try to open an actual network connection
+            val client = PoWebClient.initRemote("foo.this-cannot-be-a-tld")
+
+            client.use {
+                val exception = assertThrows<ServerConnectionException> {
+                    runBlocking { client.post(path, body) }
+                }
+
+                assertEquals("Failed to resolve DNS for ${client.baseURL}", exception.message)
+                assertTrue(exception.cause is UnknownHostException)
             }
         }
 
