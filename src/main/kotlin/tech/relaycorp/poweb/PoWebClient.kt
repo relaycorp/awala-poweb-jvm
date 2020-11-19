@@ -45,7 +45,7 @@ import tech.relaycorp.relaynet.messages.control.PrivateNodeRegistration
 import tech.relaycorp.relaynet.messages.control.PrivateNodeRegistrationRequest
 import tech.relaycorp.relaynet.wrappers.x509.Certificate
 import java.io.EOFException
-import java.net.ConnectException
+import java.io.IOException
 import java.net.SocketException
 import java.net.UnknownHostException
 import java.security.MessageDigest
@@ -290,10 +290,10 @@ public class PoWebClient internal constructor(
             { headers?.forEach { header(it.first, it.second) } },
             block
         )
-    } catch (exc: ConnectException) {
-        throw ServerConnectionException("Server is unreachable", exc)
     } catch (exc: EOFException) {
         throw ServerConnectionException("Connection was closed abruptly", exc)
+    } catch (exc: IOException) {
+        throw ServerConnectionException("Server is unreachable", exc)
     }
 
     public companion object {
