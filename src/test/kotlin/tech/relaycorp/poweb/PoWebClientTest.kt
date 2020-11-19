@@ -31,6 +31,7 @@ import tech.relaycorp.relaynet.bindings.pdc.ServerBindingException
 import tech.relaycorp.relaynet.bindings.pdc.ServerConnectionException
 import java.io.EOFException
 import java.net.ConnectException
+import java.net.ProtocolException
 import java.net.SocketException
 import java.net.UnknownHostException
 import kotlin.test.assertEquals
@@ -356,6 +357,20 @@ class PoWebClientTest {
 
                 assertEquals("Server is unreachable", exception.message)
                 assertTrue(exception.cause is ConnectException)
+            }
+        }
+
+        @Test
+        fun `Failing to upgrade the connection to WebSocket should throw an exception`() {
+            val client = PoWebClient.initRemote("example.com")
+
+            client.use {
+                val exception = assertThrows<ServerConnectionException> {
+                    runBlocking { client.wsConnect(path) {} }
+                }
+
+                assertEquals("Server is unreachable", exception.message)
+                assertTrue(exception.cause is ProtocolException)
             }
         }
 
