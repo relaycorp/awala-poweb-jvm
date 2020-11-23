@@ -46,7 +46,6 @@ import tech.relaycorp.relaynet.messages.control.PrivateNodeRegistrationRequest
 import tech.relaycorp.relaynet.wrappers.x509.Certificate
 import java.io.EOFException
 import java.io.IOException
-import java.net.SocketException
 import java.net.UnknownHostException
 import java.security.MessageDigest
 import java.security.PublicKey
@@ -246,12 +245,10 @@ public class PoWebClient internal constructor(
                 }
                 body = requestBody
             }
-        } catch (exc: SocketException) {
-            // Java on macOS throws a SocketException but all other platforms throw a
-            // ConnectException (a subclass of SocketException)
-            throw ServerConnectionException("Failed to connect to $url", exc)
         } catch (exc: UnknownHostException) {
             throw ServerConnectionException("Failed to resolve DNS for $baseURL", exc)
+        } catch (exc: IOException) {
+            throw ServerConnectionException("Failed to connect to $url", exc)
         }
 
         if (response.status.value in 200..299) {
