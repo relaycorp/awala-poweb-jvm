@@ -210,7 +210,6 @@ public class PoWebClient internal constructor(
         trustedCertificates: List<Certificate>
     ) {
         for (frame in webSocketSession.incoming) {
-            println("frame in webSocketSession.incoming ")
             val delivery = try {
                 ParcelDelivery.deserialize(frame.readBytes())
             } catch (exc: InvalidMessageException) {
