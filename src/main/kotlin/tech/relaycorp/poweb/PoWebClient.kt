@@ -49,6 +49,7 @@ import java.io.IOException
 import java.net.UnknownHostException
 import java.security.MessageDigest
 import java.security.PublicKey
+import java.time.Duration
 
 /**
  * PoWeb client.
@@ -65,12 +66,10 @@ public class PoWebClient internal constructor(
     internal val port: Int,
     internal val useTls: Boolean,
     ktorEngine: HttpClientEngine = OkHttp.create {
-        // By default, OkHTTP would throw an IOException when an illegal HTTP response is returned.
-        // Enabling retryOnConnectionFailure would treat that as a connection failure and try again,
-        // throwing a java.net.ConnectException if it still fails -- And ConnectException is a
-        // more reliable exception to handle when something like this goes wrong. See:
-        // https://github.com/relaycorp/relaynet-gateway-android/issues/149
-        preconfigured = OkHttpClient.Builder().retryOnConnectionFailure(true).build()
+        preconfigured = OkHttpClient.Builder()
+            .retryOnConnectionFailure(true)
+            .pingInterval(PING_INTERVAL)
+            .build()
     }
 ) : PDCClient {
     internal var ktorClient = HttpClient(ktorEngine) {
@@ -307,6 +306,8 @@ public class PoWebClient internal constructor(
             ContentType("application", "vnd.relaynet.node-registration.request")
         private val PNR_CONTENT_TYPE =
             ContentType("application", "vnd.relaynet.node-registration.registration")
+
+        private val PING_INTERVAL = Duration.ofSeconds(5)
 
         /**
          * Connect to a private gateway from a private endpoint.
