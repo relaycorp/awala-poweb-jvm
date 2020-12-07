@@ -1,7 +1,7 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 buildscript {
-    ext.kotlinVersion = '1.4.10'
+    ext.kotlinVersion = '1.4.20'
     ext.kotlinCoroutinesVersion = '1.4.1'
     ext.ktorVersion = '1.4.1'
     ext.okhttpVersion = '4.9.0'
