@@ -44,7 +44,7 @@ jacocoTestCoverageVerification {
                 counter = "BRANCH"
                 value = "MISSEDCOUNT"
                 // Workaround for https://github.com/jacoco/jacoco/issues/1036
-                maximum = "2".toBigDecimal()
+                maximum = "13".toBigDecimal()
             }
         }
     }
