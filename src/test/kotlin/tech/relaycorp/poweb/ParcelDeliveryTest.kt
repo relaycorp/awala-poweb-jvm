@@ -17,8 +17,8 @@ import tech.relaycorp.relaynet.bindings.pdc.ClientBindingException
 import tech.relaycorp.relaynet.bindings.pdc.DetachedSignatureType
 import tech.relaycorp.relaynet.bindings.pdc.RejectedParcelException
 import tech.relaycorp.relaynet.bindings.pdc.Signer
-import tech.relaycorp.relaynet.testing.CertificationPath
-import tech.relaycorp.relaynet.testing.KeyPairSet
+import tech.relaycorp.relaynet.testing.pki.KeyPairSet
+import tech.relaycorp.relaynet.testing.pki.PDACertPath
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
@@ -28,7 +28,7 @@ import kotlin.test.assertTrue
 class ParcelDeliveryTest {
     private val parcelSerialized = "Let's say I'm the serialization of a parcel".toByteArray()
     private val signer =
-        Signer(CertificationPath.PRIVATE_ENDPOINT, KeyPairSet.PRIVATE_ENDPOINT.private)
+        Signer(PDACertPath.PRIVATE_ENDPOINT, KeyPairSet.PRIVATE_ENDPOINT.private)
 
     @Test
     fun `Request should be made with HTTP POST`() = runBlockingTest {
@@ -100,7 +100,7 @@ class ParcelDeliveryTest {
         DetachedSignatureType.PARCEL_DELIVERY.verify(
             countersignature,
             parcelSerialized,
-            listOf(CertificationPath.PRIVATE_GW)
+            listOf(PDACertPath.PRIVATE_GW)
         )
     }
 

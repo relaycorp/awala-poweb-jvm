@@ -15,8 +15,8 @@ import org.junit.jupiter.api.assertThrows
 import tech.relaycorp.relaynet.bindings.pdc.ServerBindingException
 import tech.relaycorp.relaynet.messages.InvalidMessageException
 import tech.relaycorp.relaynet.messages.control.PrivateNodeRegistration
-import tech.relaycorp.relaynet.testing.CertificationPath
-import tech.relaycorp.relaynet.testing.KeyPairSet
+import tech.relaycorp.relaynet.testing.pki.KeyPairSet
+import tech.relaycorp.relaynet.testing.pki.PDACertPath
 import java.nio.charset.Charset
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -135,7 +135,7 @@ class RegistrationTest {
             headersOf("Content-Type", PoWebContentType.REGISTRATION.value)
 
         private val registration =
-            PrivateNodeRegistration(CertificationPath.PRIVATE_GW, CertificationPath.PUBLIC_GW)
+            PrivateNodeRegistration(PDACertPath.PRIVATE_GW, PDACertPath.PUBLIC_GW)
         private val registrationSerialized = registration.serialize()
 
         @Test
