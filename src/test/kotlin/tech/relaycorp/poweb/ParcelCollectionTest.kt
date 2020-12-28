@@ -28,8 +28,8 @@ import tech.relaycorp.relaynet.bindings.pdc.StreamingMode
 import tech.relaycorp.relaynet.issueEndpointCertificate
 import tech.relaycorp.relaynet.messages.InvalidMessageException
 import tech.relaycorp.relaynet.messages.control.HandshakeResponse
-import tech.relaycorp.relaynet.testing.CertificationPath
-import tech.relaycorp.relaynet.testing.KeyPairSet
+import tech.relaycorp.relaynet.testing.pki.KeyPairSet
+import tech.relaycorp.relaynet.testing.pki.PDACertPath
 import tech.relaycorp.relaynet.wrappers.generateRSAKeyPair
 import java.nio.charset.Charset
 import kotlin.test.assertEquals
@@ -44,7 +44,7 @@ class ParcelCollectionTest : WebSocketTestCase() {
     private val client by lazy { PoWebClient.initLocal(mockWebServer.port) }
 
     private val signer =
-        Signer(CertificationPath.PRIVATE_ENDPOINT, KeyPairSet.PRIVATE_ENDPOINT.private)
+        Signer(PDACertPath.PRIVATE_ENDPOINT, KeyPairSet.PRIVATE_ENDPOINT.private)
 
     private val deliveryId = "the delivery id"
     private val parcelSerialized = "the parcel serialized".toByteArray()
@@ -141,7 +141,7 @@ class ParcelCollectionTest : WebSocketTestCase() {
                 DetachedSignatureType.NONCE.verify(
                     it,
                     nonce,
-                    listOf(CertificationPath.PRIVATE_GW)
+                    listOf(PDACertPath.PRIVATE_GW)
                 )
             }
         }
@@ -405,8 +405,8 @@ class ParcelCollectionTest : WebSocketTestCase() {
         val certificate = issueEndpointCertificate(
             keyPair.public,
             KeyPairSet.PRIVATE_GW.private,
-            CertificationPath.PRIVATE_GW.expiryDate,
-            CertificationPath.PRIVATE_GW
+            PDACertPath.PRIVATE_GW.expiryDate,
+            PDACertPath.PRIVATE_GW
         )
         return Signer(certificate, keyPair.private)
     }

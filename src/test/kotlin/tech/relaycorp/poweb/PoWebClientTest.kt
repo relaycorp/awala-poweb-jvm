@@ -310,8 +310,7 @@ class PoWebClientTest {
 
         @Test
         fun `Failing to resolve DNS record should throw a ServerConnectionException`() {
-            // Use a real client to try to open an actual network connection
-            val client = PoWebClient.initRemote("foo.this-cannot-be-a-tld")
+            val client = makeTestClient { throw UnknownHostException("foo") }
 
             client.use {
                 val exception = assertThrows<ServerConnectionException> {
@@ -325,8 +324,7 @@ class PoWebClientTest {
 
         @Test
         fun `TCP connection issues should throw a ServerConnectionException`() {
-            // Use a real client to try to open an actual network connection
-            val client = PoWebClient.initRemote(NON_ROUTABLE_IP_ADDRESS)
+            val client = makeTestClient { throw SocketException("foo") }
 
             client.use {
                 val exception = assertThrows<ServerConnectionException> {
