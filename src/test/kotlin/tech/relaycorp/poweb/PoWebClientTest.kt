@@ -324,8 +324,7 @@ class PoWebClientTest {
 
         @Test
         fun `TCP connection issues should throw a ServerConnectionException`() {
-            // Use a real client to try to open an actual network connection
-            val client = PoWebClient.initRemote(NON_ROUTABLE_IP_ADDRESS)
+            val client = makeTestClient { throw SocketException("foo") }
 
             client.use {
                 val exception = assertThrows<ServerConnectionException> {
