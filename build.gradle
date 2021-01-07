@@ -10,7 +10,7 @@ buildscript {
 plugins {
     id("org.jetbrains.kotlin.jvm") version "$kotlinVersion"
     id('java-library')
-    id("org.jetbrains.dokka") version "0.10.1"
+    id("org.jetbrains.dokka") version "1.4.20"
     id('maven-publish')
     id("com.diffplug.spotless") version "5.9.0"
     id('jacoco')
@@ -76,9 +76,13 @@ tasks.withType(KotlinCompile).all {
     }
 }
 
-tasks.dokka {
-    outputFormat = "html"
-    outputDirectory = "$buildDir/docs/api"
+dokkaHtml.configure {
+    dokkaSourceSets {
+        configureEach {
+            reportUndocumented.set(true)
+            includes.from("api-docs.md")
+        }
+    }
 }
 
 publishing {
