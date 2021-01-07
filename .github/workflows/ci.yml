@@ -55,6 +55,7 @@ jobs:
           find ./poweb/ -name '*.html' -print0 | xargs -0 sed -i 's;../images/;images/;g'
           find ./poweb/ -name '*.html' -print0 | xargs -0 sed -i 's;../scripts/;scripts/;g'
           find ./poweb/ -name '*.html' -print0 | xargs -0 sed -i 's;pathToRoot = "../;pathToRoot = ";g'
+          sed -i 's;href="poweb/;href=";g' ./poweb/navigation.html
 
       - name: Release
         run: npx semantic-release
