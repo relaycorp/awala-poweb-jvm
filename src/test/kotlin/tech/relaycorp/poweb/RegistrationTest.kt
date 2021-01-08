@@ -12,6 +12,7 @@ import kotlinx.coroutines.test.runBlockingTest
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import tech.relaycorp.relaynet.bindings.ContentTypes
 import tech.relaycorp.relaynet.bindings.pdc.ServerBindingException
 import tech.relaycorp.relaynet.messages.InvalidMessageException
 import tech.relaycorp.relaynet.messages.control.PrivateNodeRegistration
@@ -29,7 +30,7 @@ class RegistrationTest {
     inner class PreRegistration {
         private val publicKey = KeyPairSet.PRIVATE_GW.public
         private val responseHeaders =
-            headersOf("Content-Type", PoWebContentType.REGISTRATION_AUTHORIZATION.value)
+            headersOf("Content-Type", ContentTypes.NODE_REGISTRATION_AUTHORIZATION.value)
 
         @Test
         fun `Request method should be POST`() = runBlockingTest {
@@ -67,7 +68,7 @@ class RegistrationTest {
 
             client.use { client.preRegisterNode(publicKey) }
 
-            assertEquals(PoWebContentType.PRE_REGISTRATION.value, contentType.toString())
+            assertEquals(ContentTypes.NODE_PRE_REGISTRATION.value, contentType.toString())
         }
 
         @Test
@@ -132,7 +133,7 @@ class RegistrationTest {
     inner class Registration {
         private val pnrrSerialized = "The PNRR".toByteArray()
         private val responseHeaders =
-            headersOf("Content-Type", PoWebContentType.REGISTRATION.value)
+            headersOf("Content-Type", ContentTypes.NODE_REGISTRATION.value)
 
         private val registration =
             PrivateNodeRegistration(PDACertPath.PRIVATE_GW, PDACertPath.PUBLIC_GW)
@@ -174,7 +175,7 @@ class RegistrationTest {
 
             client.use { client.registerNode(pnrrSerialized) }
 
-            assertEquals(PoWebContentType.REGISTRATION_REQUEST.value, contentType.toString())
+            assertEquals(ContentTypes.NODE_REGISTRATION_REQUEST.value, contentType.toString())
         }
 
         @Test

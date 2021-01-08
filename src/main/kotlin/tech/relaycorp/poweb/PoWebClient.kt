@@ -26,6 +26,7 @@ import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.flow
 import okhttp3.OkHttpClient
 import org.bouncycastle.util.encoders.Base64
+import tech.relaycorp.relaynet.bindings.ContentTypes
 import tech.relaycorp.relaynet.bindings.pdc.ClientBindingException
 import tech.relaycorp.relaynet.bindings.pdc.DetachedSignatureType
 import tech.relaycorp.relaynet.bindings.pdc.NonceSignerException
@@ -297,13 +298,13 @@ public class PoWebClient internal constructor(
         private const val DEFAULT_LOCAL_PORT = 276
         private const val DEFAULT_REMOTE_PORT = 443
 
-        private val PARCEL_CONTENT_TYPE = ContentType.parse(PoWebContentType.PARCEL.value)
+        private val PARCEL_CONTENT_TYPE = ContentType.parse(ContentTypes.PARCEL.value)
         private val PRE_REGISTRATION_CONTENT_TYPE =
-            ContentType.parse(PoWebContentType.PRE_REGISTRATION.value)
+            ContentType.parse(ContentTypes.NODE_PRE_REGISTRATION.value)
         private val PNRA_CONTENT_TYPE =
-            ContentType.parse(PoWebContentType.REGISTRATION_AUTHORIZATION.value)
+            ContentType.parse(ContentTypes.NODE_REGISTRATION_AUTHORIZATION.value)
         private val PNRR_CONTENT_TYPE =
-            ContentType("application", "vnd.relaynet.node-registration.request")
+            ContentType.parse(ContentTypes.NODE_REGISTRATION_REQUEST.value)
         private val PNR_CONTENT_TYPE =
             ContentType("application", "vnd.relaynet.node-registration.registration")
 

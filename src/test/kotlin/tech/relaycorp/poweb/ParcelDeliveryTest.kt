@@ -13,6 +13,7 @@ import kotlinx.coroutines.test.runBlockingTest
 import org.bouncycastle.util.encoders.Base64
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import tech.relaycorp.relaynet.bindings.ContentTypes
 import tech.relaycorp.relaynet.bindings.pdc.ClientBindingException
 import tech.relaycorp.relaynet.bindings.pdc.DetachedSignatureType
 import tech.relaycorp.relaynet.bindings.pdc.RejectedParcelException
@@ -66,7 +67,7 @@ class ParcelDeliveryTest {
 
         client.use { client.deliverParcel(parcelSerialized, signer) }
 
-        assertEquals(PoWebContentType.PARCEL.value, contentType)
+        assertEquals(ContentTypes.PARCEL.value, contentType)
     }
 
     @Test
