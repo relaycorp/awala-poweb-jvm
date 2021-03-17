@@ -305,8 +305,7 @@ public class PoWebClient internal constructor(
             ContentType.parse(ContentTypes.NODE_REGISTRATION_AUTHORIZATION.value)
         private val PNRR_CONTENT_TYPE =
             ContentType.parse(ContentTypes.NODE_REGISTRATION_REQUEST.value)
-        private val PNR_CONTENT_TYPE =
-            ContentType("application", "vnd.relaynet.node-registration.registration")
+        private val PNR_CONTENT_TYPE = ContentType.parse(ContentTypes.NODE_REGISTRATION.value)
 
         private val PING_INTERVAL = Duration.ofSeconds(5)
 
