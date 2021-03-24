@@ -1,5 +1,14 @@
 $dokka.format:html-v1
 $dokka.linkExtension:html
-
+$dokka.location:tech.relaycorp.poweb////PointingToDeclaration/poweb/tech.relaycorp.poweb/index.html
+$dokka.location:tech.relaycorp.poweb/PoWebClient.Companion///PointingToDeclaration/poweb/tech.relaycorp.poweb/-po-web-client/-companion/index.html
+$dokka.location:tech.relaycorp.poweb/PoWebClient.Companion/initLocal/#kotlin.Int/PointingToDeclaration/poweb/tech.relaycorp.poweb/-po-web-client/-companion/init-local.html
+$dokka.location:tech.relaycorp.poweb/PoWebClient.Companion/initRemote/#kotlin.String#kotlin.Int/PointingToDeclaration/poweb/tech.relaycorp.poweb/-po-web-client/-companion/init-remote.html
+$dokka.location:tech.relaycorp.poweb/PoWebClient///PointingToDeclaration/poweb/tech.relaycorp.poweb/-po-web-client/index.html
+$dokka.location:tech.relaycorp.poweb/PoWebClient/close/#/PointingToDeclaration/poweb/tech.relaycorp.poweb/-po-web-client/close.html
+$dokka.location:tech.relaycorp.poweb/PoWebClient/collectParcels/#kotlin.Array[tech.relaycorp.relaynet.bindings.pdc.Signer]#tech.relaycorp.relaynet.bindings.pdc.StreamingMode/PointingToDeclaration/poweb/tech.relaycorp.poweb/-po-web-client/collect-parcels.html
+$dokka.location:tech.relaycorp.poweb/PoWebClient/deliverParcel/#kotlin.ByteArray#tech.relaycorp.relaynet.bindings.pdc.Signer/PointingToDeclaration/poweb/tech.relaycorp.poweb/-po-web-client/deliver-parcel.html
+$dokka.location:tech.relaycorp.poweb/PoWebClient/preRegisterNode/#java.security.PublicKey/PointingToDeclaration/poweb/tech.relaycorp.poweb/-po-web-client/pre-register-node.html
+$dokka.location:tech.relaycorp.poweb/PoWebClient/registerNode/#kotlin.ByteArray/PointingToDeclaration/poweb/tech.relaycorp.poweb/-po-web-client/register-node.html
 tech.relaycorp.poweb
 
