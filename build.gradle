@@ -1,7 +1,7 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 buildscript {
-    ext.kotlinVersion = '1.4.31'
+    ext.kotlinVersion = '1.4.32'
     ext.kotlinCoroutinesVersion = '1.4.1'
     ext.ktorVersion = '1.5.3'
     ext.okhttpVersion = '4.9.1'
@@ -11,18 +11,25 @@ plugins {
     id("org.jetbrains.kotlin.jvm") version "$kotlinVersion"
     id('java-library')
     id("org.jetbrains.dokka") version "1.4.30"
-    id('maven-publish')
-    id("com.diffplug.spotless") version "5.11.0"
+    id("com.diffplug.spotless") version "5.11.1"
     id('jacoco')
     id('idea')
+
+    id('signing')
+    id('maven-publish')
+    id("io.github.gradle-nexus.publish-plugin") version "1.0.0"
 }
 
 apply from: 'jacoco.gradle'
+apply from: 'release.gradle'
 
 group = "tech.relaycorp"
 
 repositories {
-    jcenter()
+    mavenCentral()
+
+  // TODO: Remove once all of Dokka's dependencies are available on Maven Central
+  jcenter()
 }
 
 dependencies {
@@ -30,11 +37,11 @@ dependencies {
 
     implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlinVersion")
 
-    api('tech.relaycorp:relaynet:[1.48.1,2.0.0)')
-    testImplementation('tech.relaycorp:relaynet-testing:1.2.1')
+    api('tech.relaycorp:awala:[1.48.5,2.0.0)')
+    testImplementation('tech.relaycorp:awala-testing:1.2.2')
 
     // We're depending on BouncyCastle just so we can use a base64 encoder on Android 21+. See:
-    // https://github.com/relaycorp/relaynet-poweb-jvm/issues/66
+    // https://github.com/relaycorp/awala-poweb-jvm/issues/66
     implementation("org.bouncycastle:bcpkix-jdk15on:1.67")
 
     // Handshake nonce signatures
@@ -81,51 +88,6 @@ dokkaHtml.configure {
         configureEach {
             reportUndocumented.set(true)
             includes.from("api-docs.md")
-        }
-    }
-}
-
-publishing {
-    publications {
-        create("default", MavenPublication) {
-            from(components["java"])
-
-            pom {
-                name.set(rootProject.name)
-                description.set("PoWeb JVM library")
-                url.set("https://github.com/relaycorp/relaynet-poweb-jvm")
-                developers {
-                    developer {
-                        id.set("relaycorp")
-                        name.set("Relaycorp, Inc.")
-                        email.set("no-reply@relaycorp.tech")
-                    }
-                }
-                licenses {
-                    license {
-                        name.set("Apache-2.0")
-                    }
-                }
-                scm {
-                    connection.set("scm:git:https://github.com/relaycorp/relaynet-poweb-jvm.git")
-                    developerConnection.set(
-                            "scm:git:https://github.com/relaycorp/relaynet-poweb-jvm.git"
-                    )
-                    url.set("https://github.com/relaycorp/relaynet-poweb-jvm")
-                }
-            }
-        }
-    }
-    repositories {
-        maven {
-            // publish=1 automatically publishes the version
-            url = uri(
-                    "https://api.bintray.com/maven/relaycorp/maven/tech.relaycorp.poweb/;publish=1"
-            )
-            credentials {
-                username = System.getenv("BINTRAY_USERNAME")
-                password = System.getenv("BINTRAY_KEY")
-            }
         }
     }
 }
