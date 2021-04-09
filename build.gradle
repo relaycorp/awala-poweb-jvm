@@ -27,6 +27,9 @@ group = "tech.relaycorp"
 
 repositories {
     mavenCentral()
+
+  // TODO: Remove once all of Dokka's dependencies are available on Maven Central
+  jcenter()
 }
 
 dependencies {
