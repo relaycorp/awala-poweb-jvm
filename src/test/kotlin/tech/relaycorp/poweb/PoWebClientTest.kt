@@ -26,7 +26,6 @@ import tech.relaycorp.poweb.websocket.CloseConnectionAction
 import tech.relaycorp.poweb.websocket.MockKtorClientManager
 import tech.relaycorp.poweb.websocket.ServerShutdownAction
 import tech.relaycorp.poweb.websocket.WebSocketTestCase
-import tech.relaycorp.relaynet.bindings.pdc.ClientBindingException
 import tech.relaycorp.relaynet.bindings.pdc.ServerBindingException
 import tech.relaycorp.relaynet.bindings.pdc.ServerConnectionException
 import java.io.EOFException
@@ -274,19 +273,16 @@ class PoWebClientTest {
             }
 
             @Test
-            fun `Other 40X responses should be regarded protocol violations by the client`() {
-                val client = makeTestClient { respondError(HttpStatusCode.BadRequest) }
+            fun `HTTP 40X responses should be regarded protocol violations by the client`() {
+                val status = HttpStatusCode.BadRequest
+                val client = makeTestClient { respondError(status) }
 
                 client.use {
-                    val exception = assertThrows<ClientBindingException> {
+                    val exception = assertThrows<PoWebClientException> {
                         runBlockingTest { client.post(path, body) }
                     }
 
-                    assertEquals(
-                        "The server reports that the client violated binding " +
-                            "(${HttpStatusCode.BadRequest})",
-                        exception.message
-                    )
+                    assertEquals(status, exception.responseStatus)
                 }
             }
 
