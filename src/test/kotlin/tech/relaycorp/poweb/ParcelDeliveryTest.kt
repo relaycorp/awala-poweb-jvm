@@ -113,8 +113,8 @@ class ParcelDeliveryTest {
     }
 
     @Test
-    fun `HTTP 403 should throw a RejectedParcelException`() {
-        val client = makeTestClient { respondError(HttpStatusCode.Forbidden) }
+    fun `HTTP 422 should throw a RejectedParcelException`() {
+        val client = makeTestClient { respondError(HttpStatusCode.UnprocessableEntity) }
 
         client.use {
             val exception = assertThrows<RejectedParcelException> {
@@ -127,12 +127,15 @@ class ParcelDeliveryTest {
 
     @Test
     fun `Other client exceptions should be propagated`() {
-        val client = makeTestClient { respondError(HttpStatusCode.BadRequest) }
+        val status = HttpStatusCode.BadRequest
+        val client = makeTestClient { respondError(status) }
 
         client.use {
-            assertThrows<ClientBindingException> {
+            val exception = assertThrows<ClientBindingException> {
                 runBlockingTest { client.deliverParcel(parcelSerialized, signer) }
             }
+
+            assertEquals("The server returned a $status response", exception.message)
         }
     }
 }
