@@ -4,6 +4,7 @@ import io.ktor.client.engine.mock.respond
 import io.ktor.client.request.HttpRequestData
 import io.ktor.http.ContentType
 import io.ktor.http.HttpMethod
+import io.ktor.http.HttpStatusCode
 import io.ktor.http.content.OutgoingContent
 import io.ktor.http.headersOf
 import io.ktor.util.KtorExperimentalAPI
@@ -13,6 +14,7 @@ import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import tech.relaycorp.relaynet.bindings.ContentTypes
+import tech.relaycorp.relaynet.bindings.pdc.ClientBindingException
 import tech.relaycorp.relaynet.bindings.pdc.ServerBindingException
 import tech.relaycorp.relaynet.messages.InvalidMessageException
 import tech.relaycorp.relaynet.messages.control.PrivateNodeRegistration
@@ -106,6 +108,25 @@ class RegistrationTest {
 
             assertEquals(
                 "The server returned an invalid Content-Type ($invalidContentType)",
+                exception.message
+            )
+        }
+
+        @Test
+        fun `Exception should be thrown if server reports we violated binding`() {
+            val status = HttpStatusCode.Forbidden
+            val client = makeTestClient {
+                respond("{}", status = status)
+            }
+
+            val exception = assertThrows<ClientBindingException> {
+                runBlockingTest {
+                    client.use { client.preRegisterNode(publicKey) }
+                }
+            }
+
+            assertEquals(
+                "The server returned a $status response",
                 exception.message
             )
         }
@@ -228,6 +249,24 @@ class RegistrationTest {
 
             assertEquals("The server returned a malformed registration", exception.message)
             assertTrue(exception.cause is InvalidMessageException)
+        }
+
+        @Test
+        fun `Exception should be thrown if server reports we violated binding`() = runBlockingTest {
+            val client = makeTestClient {
+                respond("{}", status = HttpStatusCode.Forbidden)
+            }
+
+            val exception = assertThrows<ClientBindingException> {
+                runBlockingTest {
+                    client.use { client.registerNode(pnrrSerialized) }
+                }
+            }
+
+            assertEquals(
+                "The server returned a ${HttpStatusCode.Forbidden} response",
+                exception.message
+            )
         }
 
         @Test

@@ -1,7 +1,7 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 buildscript {
-    ext.kotlinVersion = '1.4.32'
+    ext.kotlinVersion = '1.5.0'
     ext.kotlinCoroutinesVersion = '1.4.3-native-mt'
     ext.ktorVersion = '1.5.4'
     ext.okhttpVersion = '4.9.1'
@@ -10,7 +10,7 @@ buildscript {
 plugins {
     id("org.jetbrains.kotlin.jvm") version "$kotlinVersion"
     id('java-library')
-    id("org.jetbrains.dokka") version "1.4.30"
+    id("org.jetbrains.dokka") version "1.4.32"
     id("com.diffplug.spotless") version "5.12.4"
     id('jacoco')
     id('idea')
@@ -54,7 +54,7 @@ dependencies {
     testImplementation("com.squareup.okhttp3:okhttp:$okhttpVersion")
     testImplementation("com.squareup.okhttp3:mockwebserver:$okhttpVersion")
     testImplementation("com.squareup.okio:okio:2.10.0")
-    testImplementation("org.awaitility:awaitility:4.0.3")
+    testImplementation("org.awaitility:awaitility:4.1.0")
 
     testImplementation("org.jetbrains.kotlin:kotlin-test")
     testImplementation("org.junit.jupiter:junit-jupiter:5.7.1")
