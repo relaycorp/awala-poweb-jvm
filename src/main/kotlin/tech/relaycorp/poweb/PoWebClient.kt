@@ -10,6 +10,7 @@ import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.statement.HttpResponse
 import io.ktor.http.ContentType
+import io.ktor.http.HttpStatusCode
 import io.ktor.http.cio.websocket.CloseReason
 import io.ktor.http.cio.websocket.Frame
 import io.ktor.http.cio.websocket.close
@@ -100,8 +101,11 @@ public class PoWebClient internal constructor(
         nodePublicKey: PublicKey
     ): PrivateNodeRegistrationRequest {
         val keyDigest = getSHA256DigestHex(nodePublicKey.encoded)
-        val response =
+        val response = try {
             post("/pre-registrations", TextContent(keyDigest, PRE_REGISTRATION_CONTENT_TYPE))
+        } catch (exc: PoWebClientException) {
+            throw ClientBindingException("The server returned a ${exc.responseStatus} response")
+        }
 
         requireContentType(PNRA_CONTENT_TYPE, response.contentType())
 
@@ -119,7 +123,11 @@ public class PoWebClient internal constructor(
         ClientBindingException::class
     )
     public override suspend fun registerNode(pnrrSerialized: ByteArray): PrivateNodeRegistration {
-        val response = post("/nodes", ByteArrayContent(pnrrSerialized, PNRR_CONTENT_TYPE))
+        val response = try {
+            post("/nodes", ByteArrayContent(pnrrSerialized, PNRR_CONTENT_TYPE))
+        } catch (exc: PoWebClientException) {
+            throw ClientBindingException("The server returned a ${exc.responseStatus} response")
+        }
 
         requireContentType(PNR_CONTENT_TYPE, response.contentType())
 
@@ -151,8 +159,14 @@ public class PoWebClient internal constructor(
         val body = ByteArrayContent(parcelSerialized, PARCEL_CONTENT_TYPE)
         try {
             post("/parcels", body, authorizationHeader)
-        } catch (_: ForbiddenException) {
-            throw RejectedParcelException("The server rejected the parcel")
+        } catch (exc: PoWebClientException) {
+            if (exc.responseStatus == HttpStatusCode.UnprocessableEntity) {
+                throw RejectedParcelException("The server rejected the parcel")
+            } else {
+                throw ClientBindingException(
+                    "The server returned a ${exc.responseStatus} response"
+                )
+            }
         }
     }
 
@@ -229,7 +243,7 @@ public class PoWebClient internal constructor(
         ServerConnectionException::class,
         ServerBindingException::class,
         ClientBindingException::class,
-        ForbiddenException::class
+        PoWebClientException::class
     )
     internal suspend fun post(
         path: String,
@@ -254,10 +268,7 @@ public class PoWebClient internal constructor(
             return response
         }
         throw when (response.status.value) {
-            403 -> ForbiddenException("Got an HTTP 403 response")
-            in 400..499 -> ClientBindingException(
-                "The server reports that the client violated binding (${response.status})"
-            )
+            in 400..499 -> PoWebClientException(response.status)
             in 500..599 -> ServerConnectionException(
                 "The server was unable to fulfil the request (${response.status})"
             )
