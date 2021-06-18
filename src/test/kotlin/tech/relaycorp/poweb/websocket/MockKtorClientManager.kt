@@ -4,7 +4,6 @@ import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.features.websocket.WebSockets
 import io.ktor.client.request.HttpRequestData
-import io.ktor.util.KtorExperimentalAPI
 import kotlin.test.junit5.JUnit5Asserter.fail
 
 /**
@@ -13,7 +12,6 @@ import kotlin.test.junit5.JUnit5Asserter.fail
  * We're not actually implementing a mock WebSocket server with this: We're just recording the
  * requests made.
  */
-@KtorExperimentalAPI
 class MockKtorClientManager {
     private val requests = mutableListOf<HttpRequestData>()
 

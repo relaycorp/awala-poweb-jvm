@@ -15,7 +15,6 @@ import io.ktor.http.URLProtocol
 import io.ktor.http.content.ByteArrayContent
 import io.ktor.http.content.OutgoingContent
 import io.ktor.util.InternalAPI
-import io.ktor.util.KtorExperimentalAPI
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runBlockingTest
@@ -39,7 +38,6 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 @ExperimentalCoroutinesApi
-@KtorExperimentalAPI
 @Suppress("RedundantInnerClassModifier")
 class PoWebClientTest {
     @Nested

@@ -3,6 +3,7 @@ package tech.relaycorp.poweb
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.HttpClientEngine
 import io.ktor.client.engine.okhttp.OkHttp
+import io.ktor.client.features.ClientRequestException
 import io.ktor.client.features.websocket.DefaultClientWebSocketSession
 import io.ktor.client.features.websocket.WebSockets
 import io.ktor.client.features.websocket.webSocket
@@ -19,7 +20,6 @@ import io.ktor.http.content.ByteArrayContent
 import io.ktor.http.content.OutgoingContent
 import io.ktor.http.content.TextContent
 import io.ktor.http.contentType
-import io.ktor.util.KtorExperimentalAPI
 import io.ktor.util.toByteArray
 import kotlinx.coroutines.channels.ClosedReceiveChannelException
 import kotlinx.coroutines.flow.Flow
@@ -62,7 +62,6 @@ import java.time.Duration
  *
  * The underlying connection is created lazily.
  */
-@OptIn(KtorExperimentalAPI::class)
 public class PoWebClient internal constructor(
     internal val hostName: String,
     internal val port: Int,
@@ -262,13 +261,14 @@ public class PoWebClient internal constructor(
             throw ServerConnectionException("Failed to resolve DNS for $baseURL", exc)
         } catch (exc: IOException) {
             throw ServerConnectionException("Failed to connect to $url", exc)
+        } catch (exc: ClientRequestException) {
+            throw PoWebClientException(exc.response.status)
         }
 
         if (response.status.value in 200..299) {
             return response
         }
         throw when (response.status.value) {
-            in 400..499 -> PoWebClientException(response.status)
             in 500..599 -> ServerConnectionException(
                 "The server was unable to fulfil the request (${response.status})"
             )
