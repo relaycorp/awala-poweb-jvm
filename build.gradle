@@ -1,7 +1,7 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 buildscript {
-    ext.kotlinVersion = '1.5.0'
+    ext.kotlinVersion = '1.5.10'
     ext.kotlinCoroutinesVersion = '1.4.3-native-mt'
     ext.ktorVersion = '1.4.1'
     ext.okhttpVersion = '4.9.1'
@@ -11,7 +11,7 @@ plugins {
     id("org.jetbrains.kotlin.jvm") version "$kotlinVersion"
     id('java-library')
     id("org.jetbrains.dokka") version "1.4.32"
-    id("com.diffplug.spotless") version "5.12.4"
+    id("com.diffplug.spotless") version "5.12.5"
     id('jacoco')
     id('idea')
 
@@ -61,7 +61,7 @@ dependencies {
     testImplementation("org.junit.jupiter:junit-jupiter-params:5.7.2")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
     testImplementation("com.nhaarman.mockitokotlin2:mockito-kotlin:2.2.0")
-    testImplementation("org.mockito:mockito-inline:3.9.0")
+    testImplementation("org.mockito:mockito-inline:3.10.0")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:$kotlinCoroutinesVersion")
 }
 
