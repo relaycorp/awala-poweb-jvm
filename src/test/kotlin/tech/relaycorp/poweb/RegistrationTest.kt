@@ -7,9 +7,7 @@ import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.content.OutgoingContent
 import io.ktor.http.headersOf
-import io.ktor.util.KtorExperimentalAPI
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.runBlockingTest
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -25,8 +23,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 @Suppress("RedundantInnerClassModifier")
-@ExperimentalCoroutinesApi
-@KtorExperimentalAPI
 class RegistrationTest {
     @Nested
     inner class PreRegistration {
@@ -35,7 +31,7 @@ class RegistrationTest {
             headersOf("Content-Type", ContentTypes.NODE_REGISTRATION_AUTHORIZATION.value)
 
         @Test
-        fun `Request method should be POST`() = runBlockingTest {
+        fun `Request method should be POST`() = runBlocking {
             var method: HttpMethod? = null
             val client = makeTestClient { request: HttpRequestData ->
                 method = request.method
@@ -48,7 +44,7 @@ class RegistrationTest {
         }
 
         @Test
-        fun `Request should be made to the appropriate endpoint`() = runBlockingTest {
+        fun `Request should be made to the appropriate endpoint`() = runBlocking {
             var endpointURL: String? = null
             val client = makeTestClient { request: HttpRequestData ->
                 endpointURL = request.url.toString()
@@ -61,7 +57,7 @@ class RegistrationTest {
         }
 
         @Test
-        fun `Request Content-Type should be plain text`() = runBlockingTest {
+        fun `Request Content-Type should be plain text`() = runBlocking {
             var contentType: ContentType? = null
             val client = makeTestClient { request: HttpRequestData ->
                 contentType = request.body.contentType
@@ -74,7 +70,7 @@ class RegistrationTest {
         }
 
         @Test
-        fun `Request body should be SHA-256 digest of the node public key`() = runBlockingTest {
+        fun `Request body should be SHA-256 digest of the node public key`() = runBlocking {
             var requestBody: ByteArray? = null
             val client = makeTestClient { request: HttpRequestData ->
                 assertTrue(request.body is OutgoingContent.ByteArrayContent)
@@ -101,7 +97,7 @@ class RegistrationTest {
             }
 
             val exception = assertThrows<ServerBindingException> {
-                runBlockingTest {
+                runBlocking {
                     client.use { client.preRegisterNode(publicKey) }
                 }
             }
@@ -120,7 +116,7 @@ class RegistrationTest {
             }
 
             val exception = assertThrows<ClientBindingException> {
-                runBlockingTest {
+                runBlocking {
                     client.use { client.preRegisterNode(publicKey) }
                 }
             }
@@ -133,7 +129,7 @@ class RegistrationTest {
 
         @Test
         fun `Registration request should be output if pre-registration succeeds`() =
-            runBlockingTest {
+            runBlocking {
                 val authorizationSerialized = "This is the PNRA".toByteArray()
                 val client = makeTestClient {
                     respond(authorizationSerialized, headers = responseHeaders)
@@ -161,7 +157,7 @@ class RegistrationTest {
         private val registrationSerialized = registration.serialize()
 
         @Test
-        fun `Request method should be POST`() = runBlockingTest {
+        fun `Request method should be POST`() = runBlocking {
             var method: HttpMethod? = null
             val client = makeTestClient { request: HttpRequestData ->
                 method = request.method
@@ -174,7 +170,7 @@ class RegistrationTest {
         }
 
         @Test
-        fun `Request should be made to the appropriate endpoint`() = runBlockingTest {
+        fun `Request should be made to the appropriate endpoint`() = runBlocking {
             var endpointURL: String? = null
             val client = makeTestClient { request: HttpRequestData ->
                 endpointURL = request.url.toString()
@@ -187,7 +183,7 @@ class RegistrationTest {
         }
 
         @Test
-        fun `Request Content-Type should be a PNRR`() = runBlockingTest {
+        fun `Request Content-Type should be a PNRR`() = runBlocking {
             var contentType: ContentType? = null
             val client = makeTestClient { request: HttpRequestData ->
                 contentType = request.body.contentType
@@ -200,7 +196,7 @@ class RegistrationTest {
         }
 
         @Test
-        fun `Request body should be the PNRR serialized`() = runBlockingTest {
+        fun `Request body should be the PNRR serialized`() = runBlocking {
             var requestBody: ByteArray? = null
             val client = makeTestClient { request: HttpRequestData ->
                 assertTrue(request.body is OutgoingContent.ByteArrayContent)
@@ -224,7 +220,7 @@ class RegistrationTest {
             }
 
             val exception = assertThrows<ServerBindingException> {
-                runBlockingTest {
+                runBlocking {
                     client.use { client.registerNode(pnrrSerialized) }
                 }
             }
@@ -242,7 +238,7 @@ class RegistrationTest {
             }
 
             val exception = assertThrows<ServerBindingException> {
-                runBlockingTest {
+                runBlocking {
                     client.use { client.registerNode(pnrrSerialized) }
                 }
             }
@@ -252,13 +248,13 @@ class RegistrationTest {
         }
 
         @Test
-        fun `Exception should be thrown if server reports we violated binding`() = runBlockingTest {
+        fun `Exception should be thrown if server reports we violated binding`() = runBlocking {
             val client = makeTestClient {
                 respond("{}", status = HttpStatusCode.Forbidden)
             }
 
             val exception = assertThrows<ClientBindingException> {
-                runBlockingTest {
+                runBlocking {
                     client.use { client.registerNode(pnrrSerialized) }
                 }
             }
@@ -270,7 +266,7 @@ class RegistrationTest {
         }
 
         @Test
-        fun `Registration should be output if request succeeds`() = runBlockingTest {
+        fun `Registration should be output if request succeeds`() = runBlocking {
             val client = makeTestClient {
                 respond(registrationSerialized, headers = responseHeaders)
             }

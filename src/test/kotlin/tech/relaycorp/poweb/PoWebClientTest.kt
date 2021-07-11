@@ -14,9 +14,7 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.content.ByteArrayContent
 import io.ktor.http.content.OutgoingContent
 import io.ktor.util.InternalAPI
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.test.runBlockingTest
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -35,7 +33,6 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-@ExperimentalCoroutinesApi
 @Suppress("RedundantInnerClassModifier")
 class PoWebClientTest {
     @Nested
@@ -163,7 +160,7 @@ class PoWebClientTest {
         @Nested
         inner class Request {
             @Test
-            fun `Request should be made with HTTP POST`() = runBlockingTest {
+            fun `Request should be made with HTTP POST`() = runBlocking {
                 var method: HttpMethod? = null
                 val client = makeTestClient { request: HttpRequestData ->
                     method = request.method
@@ -176,7 +173,7 @@ class PoWebClientTest {
             }
 
             @Test
-            fun `Specified path should be honored`() = runBlockingTest {
+            fun `Specified path should be honored`() = runBlocking {
                 var endpointURL: String? = null
                 val client = makeTestClient { request: HttpRequestData ->
                     endpointURL = request.url.toString()
@@ -189,7 +186,7 @@ class PoWebClientTest {
             }
 
             @Test
-            fun `Specified Content-Type should be honored`() = runBlockingTest {
+            fun `Specified Content-Type should be honored`() = runBlocking {
                 var contentType: String? = null
                 val client = makeTestClient { request: HttpRequestData ->
                     contentType = request.body.contentType.toString()
@@ -202,7 +199,7 @@ class PoWebClientTest {
             }
 
             @Test
-            fun `Request body should be the parcel serialized`() = runBlockingTest {
+            fun `Request body should be the parcel serialized`() = runBlocking {
                 var requestBody: ByteArray? = null
                 val client = makeTestClient { request: HttpRequestData ->
                     assertTrue(request.body is OutgoingContent.ByteArrayContent)
@@ -216,7 +213,7 @@ class PoWebClientTest {
             }
 
             @Test
-            fun `No Authorization header should be set by default`() = runBlockingTest {
+            fun `No Authorization header should be set by default`() = runBlocking {
                 var authorizationHeader: String? = null
                 val client = makeTestClient { request: HttpRequestData ->
                     authorizationHeader = request.headers["Authorization"]
@@ -229,7 +226,7 @@ class PoWebClientTest {
             }
 
             @Test
-            fun `Authorization should be set if requested`() = runBlockingTest {
+            fun `Authorization should be set if requested`() = runBlocking {
                 val expectedAuthorizationHeader = "Foo bar"
                 var actualAuthorizationHeader: String? = null
                 val client = makeTestClient { request: HttpRequestData ->
@@ -246,7 +243,7 @@ class PoWebClientTest {
         @Nested
         inner class Response {
             @Test
-            fun `HTTP 20X should be regarded a successful delivery`() = runBlockingTest {
+            fun `HTTP 20X should be regarded a successful delivery`(): Unit = runBlocking {
                 val client = makeTestClient { respond("", HttpStatusCode.Accepted) }
 
                 client.use { client.post(path, body) }
@@ -258,7 +255,7 @@ class PoWebClientTest {
 
                 client.use {
                     val exception = assertThrows<ServerBindingException> {
-                        runBlockingTest { client.post(path, body) }
+                        runBlocking { client.post(path, body) }
                     }
 
                     assertEquals(
@@ -275,7 +272,7 @@ class PoWebClientTest {
 
                 client.use {
                     val exception = assertThrows<PoWebClientException> {
-                        runBlockingTest { client.post(path, body) }
+                        runBlocking { client.post(path, body) }
                     }
 
                     assertEquals(status, exception.responseStatus)
@@ -288,7 +285,7 @@ class PoWebClientTest {
 
                 client.use {
                     val exception = assertThrows<ServerConnectionException> {
-                        runBlockingTest { client.post(path, body) }
+                        runBlocking { client.post(path, body) }
                     }
 
                     assertEquals(
@@ -378,14 +375,14 @@ class PoWebClientTest {
         }
 
         @Test
-        fun `Client should use WS if TLS is not required`() = runBlockingTest {
+        fun `Client should use WS if TLS is not required`() = runBlocking {
             val client = PoWebClient(hostName, mockWebServer.port, false)
 
             assertTrue(client.baseWsUrl.startsWith("ws:"), "Actual URL: ${client.baseWsUrl}")
         }
 
         @Test
-        fun `Client should use WSS if TLS is required`() = runBlockingTest {
+        fun `Client should use WSS if TLS is required`() = runBlocking {
             val client = PoWebClient(hostName, mockWebServer.port, true)
 
             assertTrue(client.baseWsUrl.startsWith("wss:"))
