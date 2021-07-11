@@ -7,7 +7,6 @@ import io.ktor.client.request.HttpRequestData
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.content.OutgoingContent
-import io.ktor.util.KtorExperimentalAPI
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runBlockingTest
 import org.bouncycastle.util.encoders.Base64
@@ -25,7 +24,6 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 @ExperimentalCoroutinesApi
-@KtorExperimentalAPI
 class ParcelDeliveryTest {
     private val parcelSerialized = "Let's say I'm the serialization of a parcel".toByteArray()
     private val signer =
@@ -54,7 +52,7 @@ class ParcelDeliveryTest {
 
         client.use { client.deliverParcel(parcelSerialized, signer) }
 
-        assertEquals("${client.baseURL}/parcels", endpointURL)
+        assertEquals("${client.baseHttpUrl}/parcels", endpointURL)
     }
 
     @Test

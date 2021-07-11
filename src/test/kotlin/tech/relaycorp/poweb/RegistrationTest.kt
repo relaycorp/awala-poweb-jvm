@@ -57,7 +57,7 @@ class RegistrationTest {
 
             client.use { client.preRegisterNode(publicKey) }
 
-            assertEquals("${client.baseURL}/pre-registrations", endpointURL)
+            assertEquals("${client.baseHttpUrl}/pre-registrations", endpointURL)
         }
 
         @Test
@@ -183,7 +183,7 @@ class RegistrationTest {
 
             client.use { client.registerNode(pnrrSerialized) }
 
-            assertEquals("${client.baseURL}/nodes", endpointURL)
+            assertEquals("${client.baseHttpUrl}/nodes", endpointURL)
         }
 
         @Test

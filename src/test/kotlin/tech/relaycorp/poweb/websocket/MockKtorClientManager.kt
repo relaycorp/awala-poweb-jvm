@@ -1,10 +1,10 @@
 package tech.relaycorp.poweb.websocket
 
 import io.ktor.client.HttpClient
-import io.ktor.client.engine.mock.MockEngine
+import io.ktor.client.engine.HttpClientEngine
+import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.features.websocket.WebSockets
-import io.ktor.client.request.HttpRequestData
-import kotlin.test.junit5.JUnit5Asserter.fail
+import okhttp3.OkHttpClient
 
 /**
  * Workaround to use Ktor's MockEngine with a WebSocket connection, which is currently unsupported.
@@ -13,34 +13,15 @@ import kotlin.test.junit5.JUnit5Asserter.fail
  * requests made.
  */
 class MockKtorClientManager {
-    private val requests = mutableListOf<HttpRequestData>()
-
-    val ktorClient = mockClient(requests)
-
-    val request: HttpRequestData
-        get() = requests.single()
-
-    suspend fun useClient(block: suspend () -> Unit) {
-        try {
-            block()
-        } catch (_: SkipHandlerException) {
-            return
-        }
-        fail("Mock handler was not reached")
-    }
+    val wsClient = mockWSClient()
 
     companion object {
-        private fun mockClient(requests: MutableList<HttpRequestData>) = HttpClient(MockEngine) {
-            install(WebSockets)
-
-            engine {
-                addHandler { request ->
-                    requests.add(request)
-                    throw SkipHandlerException()
-                }
-            }
+        private val okhttpEngine: HttpClientEngine = OkHttp.create {
+            preconfigured = OkHttpClient.Builder().build()
         }
 
-        private class SkipHandlerException : Exception()
+        private fun mockWSClient() = HttpClient(okhttpEngine) {
+            install(WebSockets)
+        }
     }
 }

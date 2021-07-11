@@ -2,12 +2,8 @@ package tech.relaycorp.poweb
 
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.MockRequestHandler
-import io.ktor.util.KtorExperimentalAPI
 import java.security.MessageDigest
 
-internal const val NON_ROUTABLE_IP_ADDRESS = "192.0.2.1"
-
-@KtorExperimentalAPI
 internal fun makeTestClient(handler: MockRequestHandler): PoWebClient {
     val ktorEngine = MockEngine.create {
         addHandler(handler)

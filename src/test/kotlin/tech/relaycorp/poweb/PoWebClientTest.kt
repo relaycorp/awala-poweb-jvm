@@ -11,7 +11,6 @@ import io.ktor.client.request.HttpRequestData
 import io.ktor.http.ContentType
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
-import io.ktor.http.URLProtocol
 import io.ktor.http.content.ByteArrayContent
 import io.ktor.http.content.OutgoingContent
 import io.ktor.util.InternalAPI
@@ -77,7 +76,7 @@ class PoWebClientTest {
             fun `Correct HTTP URL should be set when not using TLS`() {
                 val client = PoWebClient.initLocal()
 
-                assertEquals("http://127.0.0.1:276/v1", client.baseURL)
+                assertEquals("http://127.0.0.1:276/v1", client.baseHttpUrl)
             }
 
             @InternalAPI
@@ -126,7 +125,7 @@ class PoWebClientTest {
             fun `Correct HTTPS URL should be set when using TLS`() {
                 val client = PoWebClient.initRemote(hostName)
 
-                assertEquals("https://$hostName:443/v1", client.baseURL)
+                assertEquals("https://$hostName:443/v1", client.baseHttpUrl)
             }
 
             @InternalAPI
@@ -187,7 +186,7 @@ class PoWebClientTest {
 
                 client.use { client.post(path, body) }
 
-                assertEquals("${client.baseURL}$path", endpointURL)
+                assertEquals("${client.baseHttpUrl}$path", endpointURL)
             }
 
             @Test
@@ -264,7 +263,7 @@ class PoWebClientTest {
                     }
 
                     assertEquals(
-                        "Received unexpected status (${HttpStatusCode.Found})",
+                        "Unexpected redirect (${HttpStatusCode.Found})",
                         exception.message
                     )
                 }
@@ -311,7 +310,7 @@ class PoWebClientTest {
                     runBlocking { client.post(path, body) }
                 }
 
-                assertEquals("Failed to resolve DNS for ${client.baseURL}", exception.message)
+                assertEquals("Failed to resolve DNS for ${client.baseHttpUrl}", exception.message)
                 assertTrue(exception.cause is UnknownHostException)
             }
         }
@@ -325,7 +324,7 @@ class PoWebClientTest {
                     runBlocking { client.post(path, body) }
                 }
 
-                assertEquals("Failed to connect to ${client.baseURL}$path", exception.message)
+                assertEquals("Failed to connect to ${client.baseHttpUrl}$path", exception.message)
                 assertTrue(exception.cause is SocketException)
             }
         }
@@ -334,8 +333,7 @@ class PoWebClientTest {
     @Nested
     inner class WebSocketConnection : WebSocketTestCase(false) {
         private val hostName = "127.0.0.1"
-        private val port = 13276
-        private val path = "/v1/the-endpoint"
+        private val path = "/the-endpoint"
 
         @Test
         fun `Failing to connect to the server should throw an exception`() {
@@ -368,88 +366,85 @@ class PoWebClientTest {
 
         @Test
         fun `Losing the connection abruptly should throw an exception`(): Unit = runBlocking {
-            val client = PoWebClient.initLocal(mockWebServer.port)
             setListenerActions(ServerShutdownAction())
 
-            client.use {
-                val exception = assertThrows<ServerConnectionException> {
-                    runBlocking {
-                        client.wsConnect(path) {
-                            incoming.receive()
-                        }
-                    }
+            val exception = assertThrows<ServerConnectionException> {
+                mockWSConnect {
+                    incoming.receive()
                 }
-
-                assertEquals("Connection was closed abruptly", exception.message)
-                assertTrue(exception.cause is EOFException)
             }
+
+            assertEquals("Connection was closed abruptly", exception.message)
+            assertTrue(exception.cause is EOFException)
         }
 
         @Test
         fun `Client should use WS if TLS is not required`() = runBlockingTest {
-            val wsRequest = mockWSConnect(false) {}
+            val client = PoWebClient(hostName, mockWebServer.port, false)
 
-            assertEquals(URLProtocol.WS, wsRequest.url.protocol)
+            assertTrue(client.baseWsUrl.startsWith("ws:"), "Actual URL: ${client.baseWsUrl}")
         }
 
         @Test
         fun `Client should use WSS if TLS is required`() = runBlockingTest {
-            val wsRequest = mockWSConnect(true) {}
+            val client = PoWebClient(hostName, mockWebServer.port, true)
 
-            assertEquals(URLProtocol.WSS, wsRequest.url.protocol)
+            assertTrue(client.baseWsUrl.startsWith("wss:"))
         }
 
         @Test
-        fun `Client should connect to specified host and port`(): Unit = runBlockingTest {
-            val wsRequest = mockWSConnect(true) {}
+        fun `Client should connect to specified host and port`(): Unit = runBlocking {
+            setListenerActions(CloseConnectionAction())
 
-            assertEquals(hostName, wsRequest.url.host)
-            assertEquals(port, wsRequest.url.port)
+            mockWSConnect {}
+
+            assertTrue(listener!!.connected)
         }
 
         @Test
         fun `Client should connect to specified path`() = runBlocking {
-            val wsRequest = mockWSConnect {}
+            setListenerActions(CloseConnectionAction())
 
-            assertEquals(path, wsRequest.url.encodedPath)
+            mockWSConnect {}
+
+            val request = mockWebServer.takeRequest()
+            assertEquals("/v1$path", request.path)
         }
 
         @Test
         fun `Request headers should be honored`() = runBlocking {
             val header1 = Pair("x-h1", "value1")
             val header2 = Pair("x-h2", "value2")
+            setListenerActions(CloseConnectionAction())
 
-            val wsRequest = mockWSConnect(headers = listOf(header1, header2)) {}
+            mockWSConnect(listOf(header1, header2)) {}
 
-            assertEquals(header1.second, wsRequest.headers[header1.first])
-            assertEquals(header2.second, wsRequest.headers[header2.first])
+            val request = mockWebServer.takeRequest()
+            assertEquals(header1.second, request.headers[header1.first])
+            assertEquals(header2.second, request.headers[header2.first])
         }
 
         @Test
         fun `Specified block should be called`(): Unit = runBlocking {
             setListenerActions(CloseConnectionAction())
-            val client = PoWebClient.initLocal(mockWebServer.port)
 
             var wasBlockRun = false
-            client.wsConnect(path) { wasBlockRun = true }
+            mockWSConnect { wasBlockRun = true }
 
             assertTrue(wasBlockRun)
         }
 
         private suspend fun mockWSConnect(
-            useTls: Boolean = false,
             headers: List<Pair<String, String>>? = null,
             block: suspend DefaultClientWebSocketSession.() -> Unit
-        ): HttpRequestData {
-            val client = PoWebClient(hostName, port, useTls)
+        ) {
+            val client = PoWebClient(hostName, mockWebServer.port, false)
             val ktorClientManager = MockKtorClientManager()
-            client.ktorClient = ktorClientManager.ktorClient
+            client.ktorClient = ktorClientManager.wsClient
 
-            ktorClientManager.useClient {
+            client.use {
                 client.wsConnect(path, headers, block)
             }
-
-            return ktorClientManager.request
         }
     }
 }

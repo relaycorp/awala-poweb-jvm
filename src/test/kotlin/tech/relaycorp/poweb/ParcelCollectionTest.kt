@@ -1,7 +1,6 @@
 package tech.relaycorp.poweb
 
 import io.ktor.http.cio.websocket.CloseReason
-import io.ktor.util.KtorExperimentalAPI
 import kotlinx.coroutines.channels.ClosedReceiveChannelException
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
@@ -36,7 +35,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-@KtorExperimentalAPI
 class ParcelCollectionTest : WebSocketTestCase() {
     private val nonce = "nonce".toByteArray()
 
@@ -53,18 +51,20 @@ class ParcelCollectionTest : WebSocketTestCase() {
     fun closeClient() = client.ktorClient.close()
 
     @Test
-    fun `Request should be made to the parcel collection endpoint`() = runBlocking {
-        val mockClient = PoWebClient.initLocal()
+    fun `Request should be made to the parcel collection endpoint`() {
+        val mockClient = PoWebClient.initLocal(mockWebServer.port)
         val ktorClientManager = MockKtorClientManager()
-        mockClient.ktorClient = ktorClientManager.ktorClient
+        mockClient.ktorClient = ktorClientManager.wsClient
+        setListenerActions(CloseConnectionAction())
 
-        ktorClientManager.useClient {
-            mockClient.collectParcels(arrayOf(signer)).toList()
+        assertThrows<ServerConnectionException> {
+            runBlocking { mockClient.collectParcels(arrayOf(signer)).toList() }
         }
 
+        val request = mockWebServer.takeRequest()
         assertEquals(
-            PoWebClient.PARCEL_COLLECTION_ENDPOINT_PATH,
-            ktorClientManager.request.url.encodedPath
+            "/v1${PoWebClient.PARCEL_COLLECTION_ENDPOINT_PATH}",
+            request.path
         )
     }
 

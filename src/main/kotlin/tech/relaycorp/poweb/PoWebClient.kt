@@ -4,6 +4,8 @@ import io.ktor.client.HttpClient
 import io.ktor.client.engine.HttpClientEngine
 import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.features.ClientRequestException
+import io.ktor.client.features.RedirectResponseException
+import io.ktor.client.features.ServerResponseException
 import io.ktor.client.features.websocket.DefaultClientWebSocketSession
 import io.ktor.client.features.websocket.WebSockets
 import io.ktor.client.features.websocket.webSocket
@@ -80,7 +82,8 @@ public class PoWebClient internal constructor(
     private val urlScheme = if (useTls) "https" else "http"
     private val wsScheme = if (useTls) "wss" else "ws"
 
-    internal val baseURL: String = "$urlScheme://$hostName:$port/v1"
+    internal val baseHttpUrl: String = "$urlScheme://$hostName:$port/v1"
+    internal val baseWsUrl: String = "$wsScheme://$hostName:$port/v1"
 
     /**
      * Close the underlying connection to the server (if any).
@@ -249,8 +252,9 @@ public class PoWebClient internal constructor(
         requestBody: OutgoingContent,
         authorizationHeader: String? = null
     ): HttpResponse {
-        val url = "$baseURL$path"
-        val response: HttpResponse = try {
+        val url = "$baseHttpUrl$path"
+
+        return try {
             ktorClient.post(url) {
                 if (authorizationHeader != null) {
                     header("Authorization", authorizationHeader)
@@ -258,21 +262,20 @@ public class PoWebClient internal constructor(
                 body = requestBody
             }
         } catch (exc: UnknownHostException) {
-            throw ServerConnectionException("Failed to resolve DNS for $baseURL", exc)
+            throw ServerConnectionException("Failed to resolve DNS for $baseHttpUrl", exc)
         } catch (exc: IOException) {
             throw ServerConnectionException("Failed to connect to $url", exc)
+        } catch (exc: RedirectResponseException) {
+            // HTTP 3XX response
+            throw ServerBindingException("Unexpected redirect (${exc.response.status})")
         } catch (exc: ClientRequestException) {
+            // HTTP 4XX response
             throw PoWebClientException(exc.response.status)
-        }
-
-        if (response.status.value in 200..299) {
-            return response
-        }
-        throw when (response.status.value) {
-            in 500..599 -> ServerConnectionException(
-                "The server was unable to fulfil the request (${response.status})"
+        } catch (exc: ServerResponseException) {
+            // HTTP 5XX response
+            throw ServerConnectionException(
+                "The server was unable to fulfil the request (${exc.response.status})"
             )
-            else -> ServerBindingException("Received unexpected status (${response.status})")
         }
     }
 
@@ -293,7 +296,7 @@ public class PoWebClient internal constructor(
         block: suspend DefaultClientWebSocketSession.() -> Unit
     ) = try {
         ktorClient.webSocket(
-            "$wsScheme://$hostName:$port$path",
+            "$baseWsUrl$path",
             { headers?.forEach { header(it.first, it.second) } },
             block
         )
@@ -304,7 +307,7 @@ public class PoWebClient internal constructor(
     }
 
     public companion object {
-        internal const val PARCEL_COLLECTION_ENDPOINT_PATH = "/v1/parcel-collection"
+        internal const val PARCEL_COLLECTION_ENDPOINT_PATH = "/parcel-collection"
 
         private const val DEFAULT_LOCAL_PORT = 276
         private const val DEFAULT_REMOTE_PORT = 443
