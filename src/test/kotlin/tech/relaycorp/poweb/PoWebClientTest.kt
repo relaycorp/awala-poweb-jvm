@@ -392,15 +392,6 @@ class PoWebClientTest {
         }
 
         @Test
-        fun `Client should connect to specified host and port`(): Unit = runBlocking {
-            setListenerActions(CloseConnectionAction())
-
-            mockWSConnect {}
-
-            assertTrue(listener!!.connected)
-        }
-
-        @Test
         fun `Client should connect to specified path`() = runBlocking {
             setListenerActions(CloseConnectionAction())
 
