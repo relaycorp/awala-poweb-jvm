@@ -13,7 +13,7 @@ class MockWebSocketListener(
     private val actions: MutableList<MockWebSocketAction>,
     private val mockWebServer: MockWebServer
 ) : WebSocketListener() {
-    var request: Request? = null // TODO: REPLACE WITH RecordedRequest
+    var request: Request? = null
     var connectionOpen = false
     var connected = false
 
