@@ -1,7 +1,6 @@
 package tech.relaycorp.poweb
 
 import io.ktor.http.cio.websocket.CloseReason
-import io.ktor.util.KtorExperimentalAPI
 import kotlinx.coroutines.channels.ClosedReceiveChannelException
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
@@ -15,7 +14,6 @@ import org.junit.jupiter.api.assertThrows
 import tech.relaycorp.poweb.websocket.ActionSequence
 import tech.relaycorp.poweb.websocket.ChallengeAction
 import tech.relaycorp.poweb.websocket.CloseConnectionAction
-import tech.relaycorp.poweb.websocket.MockKtorClientManager
 import tech.relaycorp.poweb.websocket.ParcelDeliveryAction
 import tech.relaycorp.poweb.websocket.SendTextMessageAction
 import tech.relaycorp.poweb.websocket.WebSocketTestCase
@@ -36,7 +34,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-@KtorExperimentalAPI
 class ParcelCollectionTest : WebSocketTestCase() {
     private val nonce = "nonce".toByteArray()
 
@@ -53,18 +50,19 @@ class ParcelCollectionTest : WebSocketTestCase() {
     fun closeClient() = client.ktorClient.close()
 
     @Test
-    fun `Request should be made to the parcel collection endpoint`() = runBlocking {
-        val mockClient = PoWebClient.initLocal()
-        val ktorClientManager = MockKtorClientManager()
-        mockClient.ktorClient = ktorClientManager.ktorClient
+    fun `Request should be made to the parcel collection endpoint`() {
+        val client = PoWebClient.initLocal(mockWebServer.port)
+        client.ktorClient = ktorWSClient
+        setListenerActions(CloseConnectionAction())
 
-        ktorClientManager.useClient {
-            mockClient.collectParcels(arrayOf(signer)).toList()
+        assertThrows<ServerConnectionException> {
+            runBlocking { client.collectParcels(arrayOf(signer)).toList() }
         }
 
+        val request = mockWebServer.takeRequest()
         assertEquals(
-            PoWebClient.PARCEL_COLLECTION_ENDPOINT_PATH,
-            ktorClientManager.request.url.encodedPath
+            "/v1${PoWebClient.PARCEL_COLLECTION_ENDPOINT_PATH}",
+            request.path
         )
     }
 

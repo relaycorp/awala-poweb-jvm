@@ -3,7 +3,7 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 buildscript {
     ext.kotlinVersion = '1.5.20'
     ext.kotlinCoroutinesVersion = '1.5.0'
-    ext.ktorVersion = '1.4.1'
+    ext.ktorVersion = '1.6.1'
     ext.okhttpVersion = '4.9.1'
 }
 
@@ -62,7 +62,6 @@ dependencies {
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
     testImplementation("com.nhaarman.mockitokotlin2:mockito-kotlin:2.2.0")
     testImplementation("org.mockito:mockito-inline:3.11.2")
-    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:$kotlinCoroutinesVersion")
 }
 
 java {
