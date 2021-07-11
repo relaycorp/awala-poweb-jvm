@@ -14,7 +14,6 @@ import org.junit.jupiter.api.assertThrows
 import tech.relaycorp.poweb.websocket.ActionSequence
 import tech.relaycorp.poweb.websocket.ChallengeAction
 import tech.relaycorp.poweb.websocket.CloseConnectionAction
-import tech.relaycorp.poweb.websocket.MockKtorClientManager
 import tech.relaycorp.poweb.websocket.ParcelDeliveryAction
 import tech.relaycorp.poweb.websocket.SendTextMessageAction
 import tech.relaycorp.poweb.websocket.WebSocketTestCase
@@ -52,13 +51,12 @@ class ParcelCollectionTest : WebSocketTestCase() {
 
     @Test
     fun `Request should be made to the parcel collection endpoint`() {
-        val mockClient = PoWebClient.initLocal(mockWebServer.port)
-        val ktorClientManager = MockKtorClientManager()
-        mockClient.ktorClient = ktorClientManager.wsClient
+        val client = PoWebClient.initLocal(mockWebServer.port)
+        client.ktorClient = ktorWSClient
         setListenerActions(CloseConnectionAction())
 
         assertThrows<ServerConnectionException> {
-            runBlocking { mockClient.collectParcels(arrayOf(signer)).toList() }
+            runBlocking { client.collectParcels(arrayOf(signer)).toList() }
         }
 
         val request = mockWebServer.takeRequest()

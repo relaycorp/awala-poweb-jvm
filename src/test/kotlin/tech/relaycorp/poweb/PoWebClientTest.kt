@@ -21,7 +21,6 @@ import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import tech.relaycorp.poweb.websocket.CloseConnectionAction
-import tech.relaycorp.poweb.websocket.MockKtorClientManager
 import tech.relaycorp.poweb.websocket.ServerShutdownAction
 import tech.relaycorp.poweb.websocket.WebSocketTestCase
 import tech.relaycorp.relaynet.bindings.pdc.ServerBindingException
@@ -439,8 +438,7 @@ class PoWebClientTest {
             block: suspend DefaultClientWebSocketSession.() -> Unit
         ) {
             val client = PoWebClient(hostName, mockWebServer.port, false)
-            val ktorClientManager = MockKtorClientManager()
-            client.ktorClient = ktorClientManager.wsClient
+            client.ktorClient = ktorWSClient
 
             client.use {
                 client.wsConnect(path, headers, block)

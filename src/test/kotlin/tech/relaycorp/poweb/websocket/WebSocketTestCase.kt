@@ -1,5 +1,10 @@
 package tech.relaycorp.poweb.websocket
 
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.HttpClientEngine
+import io.ktor.client.engine.okhttp.OkHttp
+import io.ktor.client.features.websocket.WebSockets
+import okhttp3.OkHttpClient
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.awaitility.Awaitility.await
@@ -12,6 +17,13 @@ open class WebSocketTestCase(private val autoStartServer: Boolean = true) {
     protected val mockWebServer = MockWebServer()
 
     protected var listener: MockWebSocketListener? = null
+
+    private val okhttpEngine: HttpClientEngine = OkHttp.create {
+        preconfigured = OkHttpClient.Builder().build()
+    }
+    protected val ktorWSClient = HttpClient(okhttpEngine) {
+        install(WebSockets)
+    }
 
     @BeforeEach
     fun startServer() {
