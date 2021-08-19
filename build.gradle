@@ -3,7 +3,7 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 buildscript {
     ext.kotlinVersion = '1.5.20'
     ext.kotlinCoroutinesVersion = '1.5.0'
-    ext.ktorVersion = '1.6.1'
+    ext.ktorVersion = '1.6.2'
     ext.okhttpVersion = '4.9.1'
 }
 
@@ -38,7 +38,7 @@ dependencies {
     implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlinVersion")
 
     api('tech.relaycorp:awala:[1.48.5,2.0.0)')
-    testImplementation('tech.relaycorp:awala-testing:1.2.3')
+    testImplementation('tech.relaycorp:awala-testing:1.2.4')
 
     // We're depending on BouncyCastle just so we can use a base64 encoder on Android 21+. See:
     // https://github.com/relaycorp/awala-poweb-jvm/issues/66
