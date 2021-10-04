@@ -4,7 +4,7 @@ buildscript {
     ext.kotlinVersion = '1.5.21'
     ext.kotlinCoroutinesVersion = '1.5.0'
     ext.ktorVersion = '1.6.2'
-    ext.okhttpVersion = '4.9.1'
+    ext.okhttpVersion = '4.9.2'
 }
 
 plugins {
