@@ -11,7 +11,7 @@ plugins {
     id("org.jetbrains.kotlin.jvm") version "$kotlinVersion"
     id('java-library')
     id("org.jetbrains.dokka") version "1.4.32"
-    id("com.diffplug.spotless") version "5.14.2"
+    id("com.diffplug.spotless") version "6.2.1"
     id('jacoco')
     id('idea')
 
