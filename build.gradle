@@ -4,13 +4,13 @@ buildscript {
     ext.kotlinVersion = '1.5.21'
     ext.kotlinCoroutinesVersion = '1.5.0'
     ext.ktorVersion = '1.6.2'
-    ext.okhttpVersion = '4.9.1'
+    ext.okhttpVersion = '4.9.3'
 }
 
 plugins {
     id("org.jetbrains.kotlin.jvm") version "$kotlinVersion"
     id('java-library')
-    id("org.jetbrains.dokka") version "1.4.32"
+    id("org.jetbrains.dokka") version "1.6.20"
     id("com.diffplug.spotless") version "5.14.2"
     id('jacoco')
     id('idea')
@@ -38,14 +38,14 @@ dependencies {
     implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlinVersion")
 
     api('tech.relaycorp:awala:[1.48.5,2.0.0)')
-    testImplementation('tech.relaycorp:awala-testing:1.2.4')
+    testImplementation('tech.relaycorp:awala-testing:1.5.1')
 
     // We're depending on BouncyCastle just so we can use a base64 encoder on Android 21+. See:
     // https://github.com/relaycorp/awala-poweb-jvm/issues/66
-    implementation("org.bouncycastle:bcpkix-jdk15on:1.69")
+    implementation("org.bouncycastle:bcpkix-jdk15on:1.70")
 
     // Handshake nonce signatures
-    implementation("org.bouncycastle:bcpkix-jdk15on:1.69")
+    implementation("org.bouncycastle:bcpkix-jdk15on:1.70")
 
     // HTTP + WebSockets handling
     implementation("io.ktor:ktor-client-okhttp:$ktorVersion")
@@ -54,7 +54,7 @@ dependencies {
     testImplementation("com.squareup.okhttp3:okhttp:$okhttpVersion")
     testImplementation("com.squareup.okhttp3:mockwebserver:$okhttpVersion")
     testImplementation("com.squareup.okio:okio:2.10.0")
-    testImplementation("org.awaitility:awaitility:4.1.0")
+    testImplementation("org.awaitility:awaitility:4.2.0")
 
     testImplementation("org.jetbrains.kotlin:kotlin-test")
     testImplementation("org.junit.jupiter:junit-jupiter:5.8.2")
