@@ -10,7 +10,7 @@ buildscript {
 plugins {
     id("org.jetbrains.kotlin.jvm") version "$kotlinVersion"
     id('java-library')
-    id("org.jetbrains.dokka") version "1.6.20"
+    id("org.jetbrains.dokka") version "1.6.21"
     id("com.diffplug.spotless") version "5.14.2"
     id('jacoco')
     id('idea')
@@ -53,7 +53,7 @@ dependencies {
     testImplementation("io.ktor:ktor-client-mock-jvm:$ktorVersion")
     testImplementation("com.squareup.okhttp3:okhttp:$okhttpVersion")
     testImplementation("com.squareup.okhttp3:mockwebserver:$okhttpVersion")
-    testImplementation("com.squareup.okio:okio:2.10.0")
+    testImplementation("com.squareup.okio:okio:3.1.0")
     testImplementation("org.awaitility:awaitility:4.2.0")
 
     testImplementation("org.jetbrains.kotlin:kotlin-test")
