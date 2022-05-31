@@ -37,14 +37,12 @@ dependencies {
 
     implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlinVersion")
 
-    api('tech.relaycorp:awala:[1.48.5,2.0.0)')
+    api('tech.relaycorp:awala:[1.65.0,2.0.0)')
     testImplementation('tech.relaycorp:awala-testing:1.5.2')
 
+    // Handshake nonce signatures
     // We're depending on BouncyCastle just so we can use a base64 encoder on Android 21+. See:
     // https://github.com/relaycorp/awala-poweb-jvm/issues/66
-    implementation("org.bouncycastle:bcpkix-jdk15on:1.70")
-
-    // Handshake nonce signatures
     implementation("org.bouncycastle:bcpkix-jdk15on:1.70")
 
     // HTTP + WebSockets handling
