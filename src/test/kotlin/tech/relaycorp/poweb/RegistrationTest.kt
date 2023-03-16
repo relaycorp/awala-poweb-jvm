@@ -153,7 +153,7 @@ class RegistrationTest {
             headersOf("Content-Type", ContentTypes.NODE_REGISTRATION.value)
 
         private val registration =
-            PrivateNodeRegistration(PDACertPath.PRIVATE_GW, PDACertPath.PUBLIC_GW)
+            PrivateNodeRegistration(PDACertPath.PRIVATE_GW, PDACertPath.INTERNET_GW, "example.org")
         private val registrationSerialized = registration.serialize()
 
         @Test
