@@ -151,7 +151,7 @@ class ParcelCollectionTest : WebSocketTestCase() {
             addServerConnection(ChallengeAction(nonce), CloseConnectionAction())
 
             client.use {
-                client.collectParcels(arrayOf(signer)).collect { }
+                client.collectParcels(arrayOf(signer)).toList()
             }
 
             waitForConnectionClosure()
@@ -181,29 +181,6 @@ class ParcelCollectionTest : WebSocketTestCase() {
                 )
             }
         }
-
-        @Test
-        fun `Exception should be thrown if mode is Keep-Alive and code is not INTERNAL_ERROR`() =
-            runTest {
-                val code = CloseReason.Codes.VIOLATED_POLICY
-                val reason = "Whoops"
-                addServerConnection(ChallengeAction(nonce), CloseConnectionAction(code, reason))
-
-                client.use {
-                    val exception = assertThrows<ServerConnectionException> {
-                        client.collectParcels(
-                            arrayOf(signer),
-                            StreamingMode.KeepAlive
-                        ).toList()
-                    }
-
-                    assertEquals(
-                        "Server closed the connection unexpectedly " +
-                                "(code: ${code.code}, reason: $reason)",
-                        exception.message
-                    )
-                }
-            }
 
         @Test
         fun `Should be reconnected if mode is Keep-Alive and code is INTERNAL_ERROR`() = runTest {

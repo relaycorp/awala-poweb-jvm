@@ -214,18 +214,18 @@ public class PoWebClient internal constructor(
             // The server must've closed the connection for us to get here, since we're consuming
             // all incoming messages indefinitely.
             val reason = closeReason.await()!!
-            val shouldRetry = reason.code == CloseReason.Codes.INTERNAL_ERROR.code &&
-                    streamingMode == StreamingMode.KeepAlive
-            if (shouldRetry) {
+            if (reason.code == CloseReason.Codes.NORMAL.code) {
+                return@wsConnect
+            }
+            if (streamingMode == StreamingMode.KeepAlive) {
                 throw EOFException(
-                    "WebSocket connection was terminated abruptly (${reason.message})"
-                )
-            } else if (reason.code != CloseReason.Codes.NORMAL.code) {
-                throw ServerConnectionException(
-                    "Server closed the connection unexpectedly " +
-                            "(code: ${reason.code}, reason: ${reason.message})"
+                    "WebSocket connection was terminated abruptly (code: ${reason.code})"
                 )
             }
+            throw ServerConnectionException(
+                "Server closed the connection unexpectedly " +
+                        "(code: ${reason.code}, reason: ${reason.message})"
+            )
         }
     }
 
