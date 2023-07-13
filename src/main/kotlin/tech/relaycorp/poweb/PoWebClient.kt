@@ -192,8 +192,24 @@ public class PoWebClient internal constructor(
         }
 
         val trustedCertificates = nonceSigners.map { it.certificate }
+        collectParcels(
+            this@PoWebClient,
+            streamingMode,
+            nonceSigners,
+            this@flow,
+            trustedCertificates
+        )
+    }
+
+    private suspend fun collectParcels(
+        poWebClient: PoWebClient,
+        streamingMode: StreamingMode,
+        nonceSigners: Array<Signer>,
+        flowCollector: FlowCollector<ParcelCollection>,
+        trustedCertificates: List<Certificate>
+    ) {
         val streamingModeHeader = Pair(StreamingMode.HEADER_NAME, streamingMode.headerValue)
-        wsConnect(PARCEL_COLLECTION_ENDPOINT_PATH, listOf(streamingModeHeader)) {
+        poWebClient.wsConnect(PARCEL_COLLECTION_ENDPOINT_PATH, listOf(streamingModeHeader)) {
             try {
                 handshake(nonceSigners)
             } catch (exc: ClosedReceiveChannelException) {
@@ -205,15 +221,25 @@ public class PoWebClient internal constructor(
                     exc
                 )
             }
-            collectAndAckParcels(this, this@flow, trustedCertificates)
+            collectAndAckParcels(this, flowCollector, trustedCertificates)
 
             // The server must've closed the connection for us to get here, since we're consuming
             // all incoming messages indefinitely.
             val reason = closeReason.await()!!
-            if (reason.code != CloseReason.Codes.NORMAL.code) {
+            val shouldRetry = reason.code == CloseReason.Codes.INTERNAL_ERROR.code &&
+                    streamingMode == StreamingMode.KeepAlive
+            if (shouldRetry) {
+                collectParcels(
+                    poWebClient,
+                    streamingMode,
+                    nonceSigners,
+                    flowCollector,
+                    trustedCertificates
+                )
+            } else if (reason.code != CloseReason.Codes.NORMAL.code) {
                 throw ServerConnectionException(
                     "Server closed the connection unexpectedly " +
-                        "(code: ${reason.code}, reason: ${reason.message})"
+                            "(code: ${reason.code}, reason: ${reason.message})"
                 )
             }
         }

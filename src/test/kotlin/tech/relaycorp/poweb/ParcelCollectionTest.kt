@@ -2,11 +2,11 @@ package tech.relaycorp.poweb
 
 import io.ktor.http.cio.websocket.CloseReason
 import kotlinx.coroutines.channels.ClosedReceiveChannelException
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
@@ -53,7 +53,7 @@ class ParcelCollectionTest : WebSocketTestCase() {
     fun `Request should be made to the parcel collection endpoint`() {
         val client = PoWebClient.initLocal(mockWebServer.port)
         client.ktorClient = ktorWSClient
-        setListenerActions(CloseConnectionAction())
+        addServerConnection(CloseConnectionAction())
 
         assertThrows<ServerConnectionException> {
             runBlocking { client.collectParcels(arrayOf(signer)).toList() }
@@ -70,7 +70,7 @@ class ParcelCollectionTest : WebSocketTestCase() {
     inner class Handshake {
         @Test
         fun `Server closing connection during handshake should throw exception`() {
-            setListenerActions(CloseConnectionAction())
+            addServerConnection(CloseConnectionAction())
 
             client.use {
                 val exception = assertThrows<ServerConnectionException> {
@@ -85,12 +85,12 @@ class ParcelCollectionTest : WebSocketTestCase() {
             }
 
             awaitForConnectionClosure()
-            assertEquals(CloseReason.Codes.NORMAL, listener!!.closingCode)
+            assertEquals(CloseReason.Codes.NORMAL, listener.closingCode)
         }
 
         @Test
         fun `Getting an invalid challenge should throw an exception`() {
-            setListenerActions(SendTextMessageAction("Not a valid challenge"))
+            addServerConnection(SendTextMessageAction("Not a valid challenge"))
 
             client.use {
                 val exception = assertThrows<ServerBindingException> {
@@ -102,12 +102,12 @@ class ParcelCollectionTest : WebSocketTestCase() {
             }
 
             awaitForConnectionClosure()
-            assertEquals(CloseReason.Codes.VIOLATED_POLICY, listener!!.closingCode)
+            assertEquals(CloseReason.Codes.VIOLATED_POLICY, listener.closingCode)
         }
 
         @Test
         fun `At least one nonce signer should be required`() {
-            setListenerActions()
+            addServerConnection()
 
             client.use {
                 val exception = assertThrows<NonceSignerException> {
@@ -117,12 +117,12 @@ class ParcelCollectionTest : WebSocketTestCase() {
                 assertEquals("At least one nonce signer must be specified", exception.message)
             }
 
-            assertFalse(listener!!.connected)
+            assertFalse(listener.connected)
         }
 
         @Test
         fun `Challenge nonce should be signed with each signer`() {
-            setListenerActions(ChallengeAction(nonce), CloseConnectionAction())
+            addServerConnection(ChallengeAction(nonce), CloseConnectionAction())
 
             val signer2 = generateDummySigner()
 
@@ -132,8 +132,8 @@ class ParcelCollectionTest : WebSocketTestCase() {
 
             awaitForConnectionClosure()
 
-            assertEquals(1, listener!!.receivedMessages.size)
-            val response = HandshakeResponse.deserialize(listener!!.receivedMessages.first())
+            assertEquals(1, listener.receivedMessages.size)
+            val response = HandshakeResponse.deserialize(listener.receivedMessages.first())
             assertEquals(2, response.nonceSignatures.size)
             response.nonceSignatures.forEach {
                 DetachedSignatureType.NONCE.verify(
@@ -148,41 +148,92 @@ class ParcelCollectionTest : WebSocketTestCase() {
     @Test
     fun `Call should return if server closed connection normally after the handshake`(): Unit =
         runBlocking {
-            setListenerActions(ChallengeAction(nonce), CloseConnectionAction())
+            addServerConnection(ChallengeAction(nonce), CloseConnectionAction())
 
             client.use {
                 client.collectParcels(arrayOf(signer)).collect { }
             }
 
             awaitForConnectionClosure()
-            assertEquals(CloseReason.Codes.NORMAL, listener!!.closingCode)
+            assertEquals(CloseReason.Codes.NORMAL, listener.closingCode)
         }
 
-    @Test
-    fun `Exception should be thrown if server closes connection with error`(): Unit =
-        runBlocking {
+    @Nested
+    inner class ServerInitiatedClosure {
+        @Test
+        fun `Exception should be thrown if mode is close-upon-completion`() = runTest {
             val code = CloseReason.Codes.VIOLATED_POLICY
             val reason = "Whoops"
-            setListenerActions(ChallengeAction(nonce), CloseConnectionAction(code, reason))
+            addServerConnection(ChallengeAction(nonce), CloseConnectionAction(code, reason))
 
             client.use {
                 val exception = assertThrows<ServerConnectionException> {
-                    runBlocking { client.collectParcels(arrayOf(signer)).toList() }
+                    client.collectParcels(
+                        arrayOf(signer),
+                        StreamingMode.CloseUponCompletion
+                    ).toList()
                 }
 
                 assertEquals(
                     "Server closed the connection unexpectedly " +
-                        "(code: ${code.code}, reason: $reason)",
+                            "(code: ${code.code}, reason: $reason)",
                     exception.message
                 )
             }
         }
 
+        @Test
+        fun `Exception should be thrown if mode is Keep-Alive and code is not INTERNAL_ERROR`() =
+            runTest {
+                val code = CloseReason.Codes.VIOLATED_POLICY
+                val reason = "Whoops"
+                addServerConnection(ChallengeAction(nonce), CloseConnectionAction(code, reason))
+
+                client.use {
+                    val exception = assertThrows<ServerConnectionException> {
+                        client.collectParcels(
+                            arrayOf(signer),
+                            StreamingMode.KeepAlive
+                        ).toList()
+                    }
+
+                    assertEquals(
+                        "Server closed the connection unexpectedly " +
+                                "(code: ${code.code}, reason: $reason)",
+                        exception.message
+                    )
+                }
+            }
+
+        @Test
+        fun `Should be reconnected if mode is Keep-Alive and code is INTERNAL_ERROR`() = runTest {
+            // The server should end the first connection should end abruptly
+            addServerConnection(
+                ChallengeAction(nonce),
+                CloseConnectionAction(CloseReason.Codes.INTERNAL_ERROR)
+            )
+            // The second connection should be closed normally
+            addServerConnection(
+                ChallengeAction(nonce),
+                CloseConnectionAction(CloseReason.Codes.NORMAL)
+            )
+
+            client.use {
+                client.collectParcels(
+                    arrayOf(signer),
+                    StreamingMode.KeepAlive
+                ).toList()
+
+                awaitForConnectionClosure()
+            }
+        }
+    }
+
     @Test
     fun `Cancelling the flow should close the connection normally`(): Unit = runBlocking {
         val undeliveredAction =
             ParcelDeliveryAction("second delivery id", "second parcel".toByteArray())
-        setListenerActions(
+        addServerConnection(
             ChallengeAction(nonce),
             ParcelDeliveryAction(deliveryId, parcelSerialized),
             undeliveredAction
@@ -195,13 +246,13 @@ class ParcelCollectionTest : WebSocketTestCase() {
         }
 
         awaitForConnectionClosure()
-        assertEquals(CloseReason.Codes.NORMAL, listener!!.closingCode)
+        assertEquals(CloseReason.Codes.NORMAL, listener.closingCode)
         assertFalse(undeliveredAction.wasRun)
     }
 
     @Test
     fun `Malformed deliveries should be refused`(): Unit = runBlocking {
-        setListenerActions(ChallengeAction(nonce), SendTextMessageAction("invalid"))
+        addServerConnection(ChallengeAction(nonce), SendTextMessageAction("invalid"))
 
         client.use {
             val exception = assertThrows<ServerBindingException> {
@@ -213,15 +264,15 @@ class ParcelCollectionTest : WebSocketTestCase() {
         }
 
         awaitForConnectionClosure()
-        assertEquals(CloseReason.Codes.VIOLATED_POLICY, listener!!.closingCode!!)
-        assertEquals("Invalid parcel delivery", listener!!.closingReason!!)
+        assertEquals(CloseReason.Codes.VIOLATED_POLICY, listener.closingCode!!)
+        assertEquals("Invalid parcel delivery", listener.closingReason!!)
     }
 
     @Nested
     inner class StreamingModeHeader {
         @Test
         fun `Streaming mode should be Keep-Alive by default`(): Unit = runBlocking {
-            setListenerActions(ChallengeAction(nonce), CloseConnectionAction())
+            addServerConnection(ChallengeAction(nonce), CloseConnectionAction())
 
             client.use {
                 client.collectParcels(arrayOf(signer)).toList()
@@ -230,13 +281,13 @@ class ParcelCollectionTest : WebSocketTestCase() {
             awaitForConnectionClosure()
             assertEquals(
                 StreamingMode.KeepAlive.headerValue,
-                listener!!.request!!.header(StreamingMode.HEADER_NAME)
+                listener.request!!.header(StreamingMode.HEADER_NAME)
             )
         }
 
         @Test
         fun `Streaming mode can be changed on request`(): Unit = runBlocking {
-            setListenerActions(ChallengeAction(nonce), CloseConnectionAction())
+            addServerConnection(ChallengeAction(nonce), CloseConnectionAction())
 
             client.use {
                 client.collectParcels(arrayOf(signer), StreamingMode.CloseUponCompletion).toList()
@@ -245,7 +296,7 @@ class ParcelCollectionTest : WebSocketTestCase() {
             awaitForConnectionClosure()
             assertEquals(
                 StreamingMode.CloseUponCompletion.headerValue,
-                listener!!.request!!.header(StreamingMode.HEADER_NAME)
+                listener.request!!.header(StreamingMode.HEADER_NAME)
             )
         }
     }
@@ -255,7 +306,7 @@ class ParcelCollectionTest : WebSocketTestCase() {
         @Test
         fun `No collectors should be output if the server doesn't deliver anything`(): Unit =
             runBlocking {
-                setListenerActions(ChallengeAction(nonce), CloseConnectionAction())
+                addServerConnection(ChallengeAction(nonce), CloseConnectionAction())
 
                 client.use {
                     val deliveries = client.collectParcels(arrayOf(signer)).toList()
@@ -267,7 +318,7 @@ class ParcelCollectionTest : WebSocketTestCase() {
         @Test
         fun `One collector should be output if there is one delivery`(): Unit =
             runBlocking {
-                setListenerActions(
+                addServerConnection(
                     ChallengeAction(nonce),
                     ActionSequence(
                         ParcelDeliveryAction(deliveryId, parcelSerialized),
@@ -290,7 +341,7 @@ class ParcelCollectionTest : WebSocketTestCase() {
         fun `Multiple collectors should be output if there are multiple deliveries`(): Unit =
             runBlocking {
                 val parcelSerialized2 = "second parcel".toByteArray()
-                setListenerActions(
+                addServerConnection(
                     ChallengeAction(nonce),
                     ActionSequence(
                         ParcelDeliveryAction(deliveryId, parcelSerialized),
@@ -319,7 +370,7 @@ class ParcelCollectionTest : WebSocketTestCase() {
     inner class CollectorTrustedCerts {
         @Test
         fun `Collector should use trusted certificates from nonce signers`() = runBlocking {
-            setListenerActions(
+            addServerConnection(
                 ChallengeAction(nonce),
                 ActionSequence(
                     ParcelDeliveryAction(deliveryId, parcelSerialized),
@@ -343,7 +394,7 @@ class ParcelCollectionTest : WebSocketTestCase() {
     inner class CollectorACK {
         @Test
         fun `Each ACK should be passed on to the server`(): Unit = runBlocking {
-            setListenerActions(
+            addServerConnection(
                 ChallengeAction(nonce),
                 ParcelDeliveryAction(deliveryId, parcelSerialized),
                 CloseConnectionAction()
@@ -355,10 +406,10 @@ class ParcelCollectionTest : WebSocketTestCase() {
 
             awaitForConnectionClosure()
             // The server should've got two messages: The handshake response and the ACK
-            assertEquals(2, listener!!.receivedMessages.size)
+            assertEquals(2, listener.receivedMessages.size)
             assertEquals(
                 deliveryId,
-                listener!!.receivedMessages[1].toString(Charset.defaultCharset())
+                listener.receivedMessages[1].toString(Charset.defaultCharset())
             )
         }
 
@@ -367,7 +418,7 @@ class ParcelCollectionTest : WebSocketTestCase() {
             // The server will deliver 2 parcels but the client will only ACK the first one
             val additionalParcelDelivery =
                 ParcelDeliveryAction("second delivery id", "parcel".toByteArray())
-            setListenerActions(
+            addServerConnection(
                 ChallengeAction(nonce),
                 ParcelDeliveryAction(deliveryId, parcelSerialized),
                 ActionSequence(
@@ -389,10 +440,10 @@ class ParcelCollectionTest : WebSocketTestCase() {
 
             awaitForConnectionClosure()
             // The server should've got two messages: The handshake response and the first ACK
-            assertEquals(2, listener!!.receivedMessages.size)
+            assertEquals(2, listener.receivedMessages.size)
             assertEquals(
                 deliveryId,
-                listener!!.receivedMessages[1].toString(Charset.defaultCharset())
+                listener.receivedMessages[1].toString(Charset.defaultCharset())
             )
             assertTrue(additionalParcelDelivery.wasRun)
         }
