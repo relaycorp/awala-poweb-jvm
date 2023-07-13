@@ -16,7 +16,11 @@ import kotlin.test.assertTrue
 open class WebSocketTestCase(private val autoStartServer: Boolean = true) {
     protected val mockWebServer = MockWebServer()
 
-    protected var listener: MockWebSocketListener? = null
+    private var listeners: MutableList<MockWebSocketListener> =
+        emptyList<MockWebSocketListener>().toMutableList()
+
+    protected val listener: MockWebSocketListener
+        get() = listeners.single()
 
     private val okhttpEngine: HttpClientEngine = OkHttp.create {
         preconfigured = OkHttpClient.Builder().build()
@@ -31,7 +35,7 @@ open class WebSocketTestCase(private val autoStartServer: Boolean = true) {
             mockWebServer.start()
         }
 
-        listener = null
+        listeners = emptyList<MockWebSocketListener>().toMutableList()
     }
 
     @AfterEach
@@ -45,16 +49,20 @@ open class WebSocketTestCase(private val autoStartServer: Boolean = true) {
         }
     }
 
-    protected fun setListenerActions(vararg actions: MockWebSocketAction) {
-        listener = MockWebSocketListener(actions.toMutableList(), mockWebServer)
-        mockWebServer.enqueue(MockResponse().withWebSocketUpgrade(listener!!))
+    protected fun addServerConnection(vararg actions: MockWebSocketAction) {
+        val listener = MockWebSocketListener(actions.toMutableList(), mockWebServer)
+        listeners.add(listener)
+        mockWebServer.enqueue(MockResponse().withWebSocketUpgrade(listener))
     }
 
     /**
      * Wait until the connection to the server has been closed.
      */
     protected fun awaitForConnectionClosure() {
-        assertTrue(listener!!.connected, "The server must've got at least one connection")
-        await().until { !listener!!.connectionOpen }
+        assertTrue(
+            listeners.filterNot { it.connected }.isEmpty(),
+            "The server must've got at least one connection"
+        )
+        await().until { listeners.filter { it.connectionOpen }.isEmpty() }
     }
 }

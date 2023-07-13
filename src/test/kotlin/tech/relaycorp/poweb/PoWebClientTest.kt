@@ -362,7 +362,7 @@ class PoWebClientTest {
 
         @Test
         fun `Losing the connection abruptly should throw an exception`(): Unit = runBlocking {
-            setListenerActions(ServerShutdownAction())
+            addServerConnection(ServerShutdownAction())
 
             val exception = assertThrows<ServerConnectionException> {
                 mockWSConnect {
@@ -390,7 +390,7 @@ class PoWebClientTest {
 
         @Test
         fun `Client should connect to specified path`() = runBlocking {
-            setListenerActions(CloseConnectionAction())
+            addServerConnection(CloseConnectionAction())
 
             mockWSConnect {}
 
@@ -402,7 +402,7 @@ class PoWebClientTest {
         fun `Request headers should be honored`() = runBlocking {
             val header1 = Pair("x-h1", "value1")
             val header2 = Pair("x-h2", "value2")
-            setListenerActions(CloseConnectionAction())
+            addServerConnection(CloseConnectionAction())
 
             mockWSConnect(listOf(header1, header2)) {}
 
@@ -413,7 +413,7 @@ class PoWebClientTest {
 
         @Test
         fun `Specified block should be called`(): Unit = runBlocking {
-            setListenerActions(CloseConnectionAction())
+            addServerConnection(CloseConnectionAction())
 
             var wasBlockRun = false
             mockWSConnect { wasBlockRun = true }
