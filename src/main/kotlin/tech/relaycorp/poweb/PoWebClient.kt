@@ -9,6 +9,7 @@ import io.ktor.client.features.ServerResponseException
 import io.ktor.client.features.websocket.DefaultClientWebSocketSession
 import io.ktor.client.features.websocket.WebSockets
 import io.ktor.client.features.websocket.webSocket
+import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.statement.HttpResponse
@@ -24,6 +25,7 @@ import io.ktor.http.content.TextContent
 import io.ktor.http.contentType
 import io.ktor.util.toByteArray
 import kotlinx.coroutines.channels.ClosedReceiveChannelException
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.flow
@@ -54,6 +56,8 @@ import java.net.UnknownHostException
 import java.security.MessageDigest
 import java.security.PublicKey
 import java.time.Duration
+import kotlin.time.Duration.Companion.seconds
+import kotlin.time.ExperimentalTime
 
 /**
  * PoWeb client.
@@ -316,20 +320,25 @@ public class PoWebClient internal constructor(
         }
     }
 
+    @OptIn(ExperimentalTime::class)
     internal suspend fun wsConnect(
         path: String,
         headers: List<Pair<String, String>>? = null,
         block: suspend DefaultClientWebSocketSession.() -> Unit
-    ) = try {
-        ktorClient.webSocket(
-            "$baseWsUrl$path",
-            { headers?.forEach { header(it.first, it.second) } },
-            block
-        )
-    } catch (exc: EOFException) {
-        throw ServerConnectionException("Connection was closed abruptly", exc)
-    } catch (exc: IOException) {
-        throw ServerConnectionException("Server is unreachable", exc)
+    ) {
+        val url = "$baseWsUrl$path"
+        val request: HttpRequestBuilder.() -> Unit = {
+            headers?.forEach { header(it.first, it.second) }
+        }
+        try {
+            ktorClient.webSocket(url, request, block)
+        } catch (exc: EOFException) {
+            // Connection was closed abruptly; e.g., connection lost or the network changed
+            delay(ABRUPT_DISCONNECT_RETRY_DELAY)
+            ktorClient.webSocket(url, request, block)
+        } catch (exc: IOException) {
+            throw ServerConnectionException("Server is unreachable", exc)
+        }
     }
 
     public companion object {
@@ -348,6 +357,7 @@ public class PoWebClient internal constructor(
         private val PNR_CONTENT_TYPE = ContentType.parse(ContentTypes.NODE_REGISTRATION.value)
 
         private val PING_INTERVAL = Duration.ofSeconds(5)
+        private val ABRUPT_DISCONNECT_RETRY_DELAY = 3.seconds
 
         /**
          * Connect to a private gateway from a private endpoint.

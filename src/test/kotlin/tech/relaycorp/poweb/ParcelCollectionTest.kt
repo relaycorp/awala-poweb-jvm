@@ -84,7 +84,7 @@ class ParcelCollectionTest : WebSocketTestCase() {
                 assertTrue(exception.cause is ClosedReceiveChannelException)
             }
 
-            awaitForConnectionClosure()
+            waitForConnectionClosure()
             assertEquals(CloseReason.Codes.NORMAL, listener.closingCode)
         }
 
@@ -101,7 +101,7 @@ class ParcelCollectionTest : WebSocketTestCase() {
                 assertTrue(exception.cause is InvalidMessageException)
             }
 
-            awaitForConnectionClosure()
+            waitForConnectionClosure()
             assertEquals(CloseReason.Codes.VIOLATED_POLICY, listener.closingCode)
         }
 
@@ -130,7 +130,7 @@ class ParcelCollectionTest : WebSocketTestCase() {
                 runBlocking { client.collectParcels(arrayOf(signer, signer2)).toList() }
             }
 
-            awaitForConnectionClosure()
+            waitForConnectionClosure()
 
             assertEquals(1, listener.receivedMessages.size)
             val response = HandshakeResponse.deserialize(listener.receivedMessages.first())
@@ -154,7 +154,7 @@ class ParcelCollectionTest : WebSocketTestCase() {
                 client.collectParcels(arrayOf(signer)).collect { }
             }
 
-            awaitForConnectionClosure()
+            waitForConnectionClosure()
             assertEquals(CloseReason.Codes.NORMAL, listener.closingCode)
         }
 
@@ -224,7 +224,7 @@ class ParcelCollectionTest : WebSocketTestCase() {
                     StreamingMode.KeepAlive
                 ).toList()
 
-                awaitForConnectionClosure()
+                waitForConnectionClosure()
             }
         }
     }
@@ -245,7 +245,7 @@ class ParcelCollectionTest : WebSocketTestCase() {
             assertEquals(1, deliveries.size)
         }
 
-        awaitForConnectionClosure()
+        waitForConnectionClosure()
         assertEquals(CloseReason.Codes.NORMAL, listener.closingCode)
         assertFalse(undeliveredAction.wasRun)
     }
@@ -263,7 +263,7 @@ class ParcelCollectionTest : WebSocketTestCase() {
             assertTrue(exception.cause is InvalidMessageException)
         }
 
-        awaitForConnectionClosure()
+        waitForConnectionClosure()
         assertEquals(CloseReason.Codes.VIOLATED_POLICY, listener.closingCode!!)
         assertEquals("Invalid parcel delivery", listener.closingReason!!)
     }
@@ -278,7 +278,7 @@ class ParcelCollectionTest : WebSocketTestCase() {
                 client.collectParcels(arrayOf(signer)).toList()
             }
 
-            awaitForConnectionClosure()
+            waitForConnectionClosure()
             assertEquals(
                 StreamingMode.KeepAlive.headerValue,
                 listener.request!!.header(StreamingMode.HEADER_NAME)
@@ -293,7 +293,7 @@ class ParcelCollectionTest : WebSocketTestCase() {
                 client.collectParcels(arrayOf(signer), StreamingMode.CloseUponCompletion).toList()
             }
 
-            awaitForConnectionClosure()
+            waitForConnectionClosure()
             assertEquals(
                 StreamingMode.CloseUponCompletion.headerValue,
                 listener.request!!.header(StreamingMode.HEADER_NAME)
@@ -393,7 +393,7 @@ class ParcelCollectionTest : WebSocketTestCase() {
     @Nested
     inner class CollectorACK {
         @Test
-        fun `Each ACK should be passed on to the server`(): Unit = runBlocking {
+        fun `Each ACK should be passed on to the server`(): Unit = runTest {
             addServerConnection(
                 ChallengeAction(nonce),
                 ParcelDeliveryAction(deliveryId, parcelSerialized),
@@ -404,7 +404,7 @@ class ParcelCollectionTest : WebSocketTestCase() {
                 client.collectParcels(arrayOf(signer)).collect { it.ack() }
             }
 
-            awaitForConnectionClosure()
+            waitForConnectionClosure()
             // The server should've got two messages: The handshake response and the ACK
             assertEquals(2, listener.receivedMessages.size)
             assertEquals(
@@ -438,7 +438,7 @@ class ParcelCollectionTest : WebSocketTestCase() {
                 }
             }
 
-            awaitForConnectionClosure()
+            waitForConnectionClosure()
             // The server should've got two messages: The handshake response and the first ACK
             assertEquals(2, listener.receivedMessages.size)
             assertEquals(

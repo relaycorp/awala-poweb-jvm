@@ -11,7 +11,7 @@ import org.awaitility.Awaitility.await
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import java.io.IOException
-import kotlin.test.assertTrue
+import kotlin.test.assertEquals
 
 open class WebSocketTestCase(private val autoStartServer: Boolean = true) {
     protected val mockWebServer = MockWebServer()
@@ -58,11 +58,9 @@ open class WebSocketTestCase(private val autoStartServer: Boolean = true) {
     /**
      * Wait until the connection to the server has been closed.
      */
-    protected fun awaitForConnectionClosure() {
-        assertTrue(
-            listeners.filterNot { it.connected }.isEmpty(),
-            "The server must've got at least one connection"
-        )
-        await().until { listeners.filter { it.connectionOpen }.isEmpty() }
+    protected fun waitForConnectionClosure() {
+        val unusedConnectionsCount = listeners.filterNot { it.connected }.count()
+        assertEquals(0, unusedConnectionsCount)
+        await().until { listeners.none { it.connectionOpen } }
     }
 }
