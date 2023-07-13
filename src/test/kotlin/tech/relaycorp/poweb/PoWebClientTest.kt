@@ -19,7 +19,6 @@ import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import tech.relaycorp.poweb.websocket.CloseConnectionAction
-import tech.relaycorp.poweb.websocket.ServerShutdownAction
 import tech.relaycorp.poweb.websocket.WebSocketTestCase
 import tech.relaycorp.relaynet.bindings.pdc.ServerBindingException
 import tech.relaycorp.relaynet.bindings.pdc.ServerConnectionException
@@ -28,10 +27,13 @@ import java.net.ConnectException
 import java.net.ProtocolException
 import java.net.SocketException
 import java.net.UnknownHostException
+import java.time.Duration
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.seconds
+import kotlin.time.toJavaDuration
 
 @Suppress("RedundantInnerClassModifier")
 class PoWebClientTest {
@@ -290,7 +292,7 @@ class PoWebClientTest {
 
                     assertEquals(
                         "The server was unable to fulfil the request " +
-                            "(${HttpStatusCode.BadGateway})",
+                                "(${HttpStatusCode.BadGateway})",
                         exception.message
                     )
                 }
@@ -361,17 +363,24 @@ class PoWebClientTest {
         }
 
         @Test
-        fun `Losing the connection abruptly should throw an exception`(): Unit = runBlocking {
-            addServerConnection(ServerShutdownAction())
+        fun `Client should reconnect if the connection is lost abruptly`(): Unit = runBlocking {
+            val connection1 = CloseConnectionAction()
+            addServerConnection(connection1)
+            val connection2 = CloseConnectionAction()
+            addServerConnection(connection2)
 
-            val exception = assertThrows<ServerConnectionException> {
-                mockWSConnect {
-                    incoming.receive()
+            var connectionLossReplicated = false
+            mockWSConnect {
+                if (!connectionLossReplicated) {
+                    connectionLossReplicated = true
+                    throw EOFException("Connection lost")
                 }
             }
 
-            assertEquals("Connection was closed abruptly", exception.message)
-            assertTrue(exception.cause is EOFException)
+            waitForConnectionClosure()
+            val expectedDelta = 3.seconds.toJavaDuration()
+            val delta = Duration.between(connection2.runDate!!, connection1.runDate!!)
+            assertTrue(delta <= expectedDelta)
         }
 
         @Test

@@ -6,12 +6,15 @@ import okhttp3.mockwebserver.MockWebServer
 import okio.ByteString.Companion.toByteString
 import tech.relaycorp.relaynet.messages.control.HandshakeChallenge
 import tech.relaycorp.relaynet.messages.control.ParcelDelivery
+import java.time.LocalDateTime
 
 sealed class MockWebSocketAction {
     var wasRun = false
+    var runDate: LocalDateTime? = null
 
     open fun run(webSocket: WebSocket, mockWebServer: MockWebServer) {
         wasRun = true
+        runDate = LocalDateTime.now()
     }
 }
 
@@ -41,13 +44,6 @@ class CloseConnectionAction(
 ) : MockWebSocketAction() {
     override fun run(webSocket: WebSocket, mockWebServer: MockWebServer) {
         webSocket.close(code.code.toInt(), reason)
-        super.run(webSocket, mockWebServer)
-    }
-}
-
-class ServerShutdownAction : MockWebSocketAction() {
-    override fun run(webSocket: WebSocket, mockWebServer: MockWebServer) {
-        mockWebServer.shutdown()
         super.run(webSocket, mockWebServer)
     }
 }
