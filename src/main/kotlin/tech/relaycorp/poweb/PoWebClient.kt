@@ -29,6 +29,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.flow
+import mu.KotlinLogging
 import okhttp3.OkHttpClient
 import org.bouncycastle.util.encoders.Base64
 import tech.relaycorp.relaynet.bindings.ContentTypes
@@ -58,6 +59,8 @@ import java.security.PublicKey
 import java.time.Duration
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.ExperimentalTime
+
+private val logger = KotlinLogging.logger {}
 
 /**
  * PoWeb client.
@@ -316,6 +319,7 @@ public class PoWebClient internal constructor(
             } catch (exc: EOFException) {
                 // Connection was established, but it was just closed abruptly.
                 // E.g., the Internet connection was lost or the network changed.
+                logger.info { "WebSocket connection ended abruptly (${exc.message}). Will retry." }
                 delay(ABRUPT_DISCONNECT_RETRY_DELAY)
             } catch (exc: IOException) {
                 throw ServerConnectionException("Server is unreachable", exc)
