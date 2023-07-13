@@ -196,24 +196,8 @@ public class PoWebClient internal constructor(
         }
 
         val trustedCertificates = nonceSigners.map { it.certificate }
-        collectParcels(
-            this@PoWebClient,
-            streamingMode,
-            nonceSigners,
-            this@flow,
-            trustedCertificates
-        )
-    }
-
-    private suspend fun collectParcels(
-        poWebClient: PoWebClient,
-        streamingMode: StreamingMode,
-        nonceSigners: Array<Signer>,
-        flowCollector: FlowCollector<ParcelCollection>,
-        trustedCertificates: List<Certificate>
-    ) {
         val streamingModeHeader = Pair(StreamingMode.HEADER_NAME, streamingMode.headerValue)
-        poWebClient.wsConnect(PARCEL_COLLECTION_ENDPOINT_PATH, listOf(streamingModeHeader)) {
+        wsConnect(PARCEL_COLLECTION_ENDPOINT_PATH, listOf(streamingModeHeader)) {
             try {
                 handshake(nonceSigners)
             } catch (exc: ClosedReceiveChannelException) {
@@ -225,7 +209,7 @@ public class PoWebClient internal constructor(
                     exc
                 )
             }
-            collectAndAckParcels(this, flowCollector, trustedCertificates)
+            collectAndAckParcels(this, this@flow, trustedCertificates)
 
             // The server must've closed the connection for us to get here, since we're consuming
             // all incoming messages indefinitely.
@@ -233,12 +217,8 @@ public class PoWebClient internal constructor(
             val shouldRetry = reason.code == CloseReason.Codes.INTERNAL_ERROR.code &&
                     streamingMode == StreamingMode.KeepAlive
             if (shouldRetry) {
-                collectParcels(
-                    poWebClient,
-                    streamingMode,
-                    nonceSigners,
-                    flowCollector,
-                    trustedCertificates
+                throw EOFException(
+                    "WebSocket connection was terminated abruptly (${reason.message})"
                 )
             } else if (reason.code != CloseReason.Codes.NORMAL.code) {
                 throw ServerConnectionException(

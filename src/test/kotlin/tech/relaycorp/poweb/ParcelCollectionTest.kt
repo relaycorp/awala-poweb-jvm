@@ -219,10 +219,7 @@ class ParcelCollectionTest : WebSocketTestCase() {
             )
 
             client.use {
-                client.collectParcels(
-                    arrayOf(signer),
-                    StreamingMode.KeepAlive
-                ).toList()
+                client.collectParcels(arrayOf(signer), StreamingMode.KeepAlive).toList()
 
                 waitForConnectionClosure()
             }
