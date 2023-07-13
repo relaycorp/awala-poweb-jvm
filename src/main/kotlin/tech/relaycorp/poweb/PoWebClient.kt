@@ -29,6 +29,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.flow
+import mu.KotlinLogging
 import okhttp3.OkHttpClient
 import org.bouncycastle.util.encoders.Base64
 import tech.relaycorp.relaynet.bindings.ContentTypes
@@ -58,6 +59,8 @@ import java.security.PublicKey
 import java.time.Duration
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.ExperimentalTime
+
+private val logger = KotlinLogging.logger {}
 
 /**
  * PoWeb client.
@@ -196,24 +199,8 @@ public class PoWebClient internal constructor(
         }
 
         val trustedCertificates = nonceSigners.map { it.certificate }
-        collectParcels(
-            this@PoWebClient,
-            streamingMode,
-            nonceSigners,
-            this@flow,
-            trustedCertificates
-        )
-    }
-
-    private suspend fun collectParcels(
-        poWebClient: PoWebClient,
-        streamingMode: StreamingMode,
-        nonceSigners: Array<Signer>,
-        flowCollector: FlowCollector<ParcelCollection>,
-        trustedCertificates: List<Certificate>
-    ) {
         val streamingModeHeader = Pair(StreamingMode.HEADER_NAME, streamingMode.headerValue)
-        poWebClient.wsConnect(PARCEL_COLLECTION_ENDPOINT_PATH, listOf(streamingModeHeader)) {
+        wsConnect(PARCEL_COLLECTION_ENDPOINT_PATH, listOf(streamingModeHeader)) {
             try {
                 handshake(nonceSigners)
             } catch (exc: ClosedReceiveChannelException) {
@@ -225,27 +212,23 @@ public class PoWebClient internal constructor(
                     exc
                 )
             }
-            collectAndAckParcels(this, flowCollector, trustedCertificates)
+            collectAndAckParcels(this, this@flow, trustedCertificates)
 
             // The server must've closed the connection for us to get here, since we're consuming
             // all incoming messages indefinitely.
             val reason = closeReason.await()!!
-            val shouldRetry = reason.code == CloseReason.Codes.INTERNAL_ERROR.code &&
-                    streamingMode == StreamingMode.KeepAlive
-            if (shouldRetry) {
-                collectParcels(
-                    poWebClient,
-                    streamingMode,
-                    nonceSigners,
-                    flowCollector,
-                    trustedCertificates
-                )
-            } else if (reason.code != CloseReason.Codes.NORMAL.code) {
-                throw ServerConnectionException(
-                    "Server closed the connection unexpectedly " +
-                            "(code: ${reason.code}, reason: ${reason.message})"
+            if (reason.code == CloseReason.Codes.NORMAL.code) {
+                return@wsConnect
+            }
+            if (streamingMode == StreamingMode.KeepAlive) {
+                throw EOFException(
+                    "WebSocket connection was terminated abruptly (code: ${reason.code})"
                 )
             }
+            throw ServerConnectionException(
+                "Server closed the connection unexpectedly " +
+                        "(code: ${reason.code}, reason: ${reason.message})"
+            )
         }
     }
 
@@ -336,6 +319,7 @@ public class PoWebClient internal constructor(
             } catch (exc: EOFException) {
                 // Connection was established, but it was just closed abruptly.
                 // E.g., the Internet connection was lost or the network changed.
+                logger.info { "WebSocket connection ended abruptly (${exc.message}). Will retry." }
                 delay(ABRUPT_DISCONNECT_RETRY_DELAY)
             } catch (exc: IOException) {
                 throw ServerConnectionException("Server is unreachable", exc)
