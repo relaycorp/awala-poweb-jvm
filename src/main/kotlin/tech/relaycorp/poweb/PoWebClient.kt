@@ -330,14 +330,16 @@ public class PoWebClient internal constructor(
         val request: HttpRequestBuilder.() -> Unit = {
             headers?.forEach { header(it.first, it.second) }
         }
-        try {
-            ktorClient.webSocket(url, request, block)
-        } catch (exc: EOFException) {
-            // Connection was closed abruptly; e.g., connection lost or the network changed
-            delay(ABRUPT_DISCONNECT_RETRY_DELAY)
-            ktorClient.webSocket(url, request, block)
-        } catch (exc: IOException) {
-            throw ServerConnectionException("Server is unreachable", exc)
+        repeat(Int.MAX_VALUE) {
+            try {
+                return ktorClient.webSocket(url, request, block)
+            } catch (exc: EOFException) {
+                // Connection was established, but it was just closed abruptly.
+                // E.g., the Internet connection was lost or the network changed.
+                delay(ABRUPT_DISCONNECT_RETRY_DELAY)
+            } catch (exc: IOException) {
+                throw ServerConnectionException("Server is unreachable", exc)
+            }
         }
     }
 
