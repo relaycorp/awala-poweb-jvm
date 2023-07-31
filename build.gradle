@@ -39,7 +39,7 @@ dependencies {
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:$kotlinCoroutinesVersion")
 
     api('tech.relaycorp:awala:[1.66.4,2.0.0)')
-    testImplementation('tech.relaycorp:awala-testing:1.5.19')
+    testImplementation('tech.relaycorp:awala-testing:1.5.20')
 
     // Handshake nonce signatures
     // We're depending on BouncyCastle just so we can use a base64 encoder on Android 21+. See:
