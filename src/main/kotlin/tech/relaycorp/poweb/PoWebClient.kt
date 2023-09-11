@@ -314,6 +314,7 @@ public class PoWebClient internal constructor(
             headers?.forEach { header(it.first, it.second) }
         }
         repeat(Int.MAX_VALUE) {
+            logger.info { "Starting WebSocket connection attempt #$it" }
             try {
                 return ktorClient.webSocket(url, request, block)
             } catch (exc: EOFException) {
@@ -322,7 +323,10 @@ public class PoWebClient internal constructor(
                 logger.info { "WebSocket connection ended abruptly (${exc.message}). Will retry." }
                 delay(ABRUPT_DISCONNECT_RETRY_DELAY)
             } catch (exc: IOException) {
+                logger.info { "Server is unreachable (${exc.message})" }
                 throw ServerConnectionException("Server is unreachable", exc)
+            } finally {
+                logger.info { "WebSocket connection attempt #$it ended" }
             }
         }
     }
