@@ -2,7 +2,9 @@ package tech.relaycorp.poweb
 
 import io.ktor.http.cio.websocket.CloseReason
 import kotlinx.coroutines.channels.ClosedReceiveChannelException
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
@@ -375,7 +377,7 @@ class ParcelCollectionTest : WebSocketTestCase() {
             )
 
             client.use {
-                client.collectParcels(arrayOf(signer)).collect { it.ack() }
+                client.collectParcels(arrayOf(signer)).onEach { it.ack() }.collect()
             }
 
             waitForConnectionClosure()
@@ -403,13 +405,13 @@ class ParcelCollectionTest : WebSocketTestCase() {
 
             client.use {
                 var wasFirstCollectionAcknowledged = false
-                client.collectParcels(arrayOf(signer)).collect {
+                client.collectParcels(arrayOf(signer)).onEach {
                     // Only acknowledge the first collection
                     if (!wasFirstCollectionAcknowledged) {
                         it.ack()
                         wasFirstCollectionAcknowledged = true
                     }
-                }
+                }.collect()
             }
 
             waitForConnectionClosure()
