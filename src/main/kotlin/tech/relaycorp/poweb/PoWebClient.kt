@@ -184,12 +184,10 @@ public class PoWebClient internal constructor(
      *
      * @param nonceSigners The nonce signers for each node whose parcels should be collected
      * @param streamingMode Which streaming mode to ask the server to use
+     *
+     * @return Flow emitting ParcelCollection that may throw ServerException,
+     *         ClientBindingException, and NonceSignerException.
      */
-    @Throws(
-        ServerException::class,
-        ClientBindingException::class,
-        NonceSignerException::class
-    )
     public override suspend fun collectParcels(
         nonceSigners: Array<Signer>,
         streamingMode: StreamingMode
