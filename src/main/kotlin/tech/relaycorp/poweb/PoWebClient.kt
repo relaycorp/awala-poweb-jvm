@@ -29,7 +29,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.flow
-import mu.KotlinLogging
 import okhttp3.OkHttpClient
 import org.bouncycastle.util.encoders.Base64
 import tech.relaycorp.relaynet.bindings.ContentTypes
@@ -57,10 +56,9 @@ import java.net.UnknownHostException
 import java.security.MessageDigest
 import java.security.PublicKey
 import java.time.Duration
+import java.util.logging.Logger
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.ExperimentalTime
-
-private val logger = KotlinLogging.logger {}
 
 /**
  * PoWeb client.
@@ -82,6 +80,8 @@ public class PoWebClient internal constructor(
             .build()
     }
 ) : PDCClient {
+    private val logger by lazy { Logger.getLogger(javaClass.name) }
+
     internal var ktorClient = HttpClient(ktorEngine) {
         install(WebSockets)
     }
