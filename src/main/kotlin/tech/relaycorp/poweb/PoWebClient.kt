@@ -52,11 +52,13 @@ import tech.relaycorp.relaynet.messages.control.PrivateNodeRegistrationRequest
 import tech.relaycorp.relaynet.wrappers.x509.Certificate
 import java.io.EOFException
 import java.io.IOException
+import java.net.SocketTimeoutException
 import java.net.UnknownHostException
 import java.security.MessageDigest
 import java.security.PublicKey
 import java.time.Duration
 import java.util.logging.Logger
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.ExperimentalTime
 
@@ -319,6 +321,9 @@ public class PoWebClient internal constructor(
                 // E.g., the Internet connection was lost or the network changed.
                 logger.info { "WebSocket connection ended abruptly (${exc.message}). Will retry." }
                 delay(ABRUPT_DISCONNECT_RETRY_DELAY)
+            } catch (exc: SocketTimeoutException) {
+                logger.info { "WebSocket connection timed out (${exc.message}). Will retry." }
+                delay(TIMEOUT_RETRY_DELAY)
             } catch (exc: IOException) {
                 throw ServerConnectionException("Server is unreachable", exc)
             }
@@ -341,7 +346,9 @@ public class PoWebClient internal constructor(
         private val PNR_CONTENT_TYPE = ContentType.parse(ContentTypes.NODE_REGISTRATION.value)
 
         private val PING_INTERVAL = Duration.ofSeconds(5)
+
         private val ABRUPT_DISCONNECT_RETRY_DELAY = 3.seconds
+        private val TIMEOUT_RETRY_DELAY = 500.milliseconds
 
         /**
          * Connect to a private gateway from a private endpoint.

@@ -26,12 +26,14 @@ import java.io.EOFException
 import java.net.ConnectException
 import java.net.ProtocolException
 import java.net.SocketException
+import java.net.SocketTimeoutException
 import java.net.UnknownHostException
 import java.time.Duration
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.toJavaDuration
 
@@ -379,6 +381,27 @@ class PoWebClientTest {
 
             waitForConnectionClosure()
             val expectedDelta = 3.seconds.toJavaDuration()
+            val delta = Duration.between(connection2.runDate!!, connection1.runDate!!)
+            assertTrue(delta <= expectedDelta)
+        }
+
+        @Test
+        fun `Client should reconnect if the connection timed-out`(): Unit = runBlocking {
+            val connection1 = CloseConnectionAction()
+            addServerConnection(connection1)
+            val connection2 = CloseConnectionAction()
+            addServerConnection(connection2)
+
+            var connectionLossReplicated = false
+            mockWSConnect {
+                if (!connectionLossReplicated) {
+                    connectionLossReplicated = true
+                    throw SocketTimeoutException("Timeout")
+                }
+            }
+
+            waitForConnectionClosure()
+            val expectedDelta = 500.milliseconds.toJavaDuration()
             val delta = Duration.between(connection2.runDate!!, connection1.runDate!!)
             assertTrue(delta <= expectedDelta)
         }
