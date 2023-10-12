@@ -3,32 +3,34 @@ package tech.relaycorp.poweb
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.HttpClientEngine
 import io.ktor.client.engine.okhttp.OkHttp
-import io.ktor.client.features.ClientRequestException
-import io.ktor.client.features.RedirectResponseException
-import io.ktor.client.features.ServerResponseException
-import io.ktor.client.features.websocket.DefaultClientWebSocketSession
-import io.ktor.client.features.websocket.WebSockets
-import io.ktor.client.features.websocket.webSocket
+import io.ktor.client.plugins.websocket.DefaultClientWebSocketSession
+import io.ktor.client.plugins.websocket.WebSockets
+import io.ktor.client.plugins.websocket.webSocket
 import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.header
 import io.ktor.client.request.post
+import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
+import io.ktor.client.statement.readBytes
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
-import io.ktor.http.cio.websocket.CloseReason
-import io.ktor.http.cio.websocket.Frame
-import io.ktor.http.cio.websocket.close
-import io.ktor.http.cio.websocket.readBytes
 import io.ktor.http.content.ByteArrayContent
 import io.ktor.http.content.OutgoingContent
 import io.ktor.http.content.TextContent
 import io.ktor.http.contentType
-import io.ktor.util.toByteArray
+import io.ktor.websocket.CloseReason
+import io.ktor.websocket.Frame
+import io.ktor.websocket.close
+import io.ktor.websocket.readBytes
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.ClosedReceiveChannelException
+import kotlinx.coroutines.channels.ProducerScope
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.FlowCollector
-import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.cancellable
+import kotlinx.coroutines.flow.channelFlow
+import kotlinx.coroutines.isActive
 import okhttp3.OkHttpClient
 import org.bouncycastle.util.encoders.Base64
 import tech.relaycorp.relaynet.bindings.ContentTypes
@@ -120,7 +122,7 @@ public class PoWebClient internal constructor(
 
         requireContentType(PNRA_CONTENT_TYPE, response.contentType())
 
-        val authorizationSerialized = response.content.toByteArray()
+        val authorizationSerialized = response.readBytes()
         return PrivateNodeRegistrationRequest(nodePublicKey, authorizationSerialized)
     }
 
@@ -143,7 +145,7 @@ public class PoWebClient internal constructor(
         requireContentType(PNR_CONTENT_TYPE, response.contentType())
 
         return try {
-            PrivateNodeRegistration.deserialize(response.content.toByteArray())
+            PrivateNodeRegistration.deserialize(response.readBytes())
         } catch (exc: InvalidMessageException) {
             throw ServerBindingException("The server returned a malformed registration", exc)
         }
@@ -193,7 +195,7 @@ public class PoWebClient internal constructor(
     public override suspend fun collectParcels(
         nonceSigners: Array<Signer>,
         streamingMode: StreamingMode
-    ): Flow<ParcelCollection> = flow {
+    ): Flow<ParcelCollection> = channelFlow {
         if (nonceSigners.isEmpty()) {
             throw NonceSignerException("At least one nonce signer must be specified")
         }
@@ -212,7 +214,11 @@ public class PoWebClient internal constructor(
                     exc
                 )
             }
-            collectAndAckParcels(this, this@flow, trustedCertificates)
+            try {
+                collectAndAckParcels(this, this@channelFlow, trustedCertificates)
+            } catch (e: CancellationException) {
+                close(CloseReason(CloseReason.Codes.NORMAL, ""))
+            }
 
             // The server must've closed the connection for us to get here, since we're consuming
             // all incoming messages indefinitely.
@@ -230,12 +236,12 @@ public class PoWebClient internal constructor(
                         "(code: ${reason.code}, reason: ${reason.message})"
             )
         }
-    }
+    }.cancellable()
 
     @Throws(ServerBindingException::class)
     private suspend fun collectAndAckParcels(
         webSocketSession: DefaultClientWebSocketSession,
-        flowCollector: FlowCollector<ParcelCollection>,
+        producerScope: ProducerScope<ParcelCollection>,
         trustedCertificates: List<Certificate>
     ) {
         for (frame in webSocketSession.incoming) {
@@ -250,7 +256,7 @@ public class PoWebClient internal constructor(
             val collector = ParcelCollection(delivery.parcelSerialized, trustedCertificates) {
                 webSocketSession.outgoing.send(Frame.Text(delivery.deliveryId))
             }
-            flowCollector.emit(collector)
+            producerScope.send(collector)
         }
     }
 
@@ -268,27 +274,27 @@ public class PoWebClient internal constructor(
         val url = "$baseHttpUrl$path"
 
         return try {
-            ktorClient.post(url) {
+            val response = ktorClient.post(url) {
                 if (authorizationHeader != null) {
                     header("Authorization", authorizationHeader)
                 }
-                body = requestBody
+                setBody(requestBody)
+            }
+            when (response.status.value) {
+                in 200..299 ->
+                    response
+                in 300..399 ->
+                    throw ServerBindingException("Unexpected redirect (${response.status})")
+                in 400..499 ->
+                    throw PoWebClientException(response.status)
+                else -> throw ServerConnectionException(
+                    "The server was unable to fulfil the request (${response.status})"
+                )
             }
         } catch (exc: UnknownHostException) {
             throw ServerConnectionException("Failed to resolve DNS for $baseHttpUrl", exc)
         } catch (exc: IOException) {
             throw ServerConnectionException("Failed to connect to $url", exc)
-        } catch (exc: RedirectResponseException) {
-            // HTTP 3XX response
-            throw ServerBindingException("Unexpected redirect (${exc.response.status})")
-        } catch (exc: ClientRequestException) {
-            // HTTP 4XX response
-            throw PoWebClientException(exc.response.status)
-        } catch (exc: ServerResponseException) {
-            // HTTP 5XX response
-            throw ServerConnectionException(
-                "The server was unable to fulfil the request (${exc.response.status})"
-            )
         }
     }
 
@@ -313,7 +319,7 @@ public class PoWebClient internal constructor(
         val request: HttpRequestBuilder.() -> Unit = {
             headers?.forEach { header(it.first, it.second) }
         }
-        repeat(Int.MAX_VALUE) {
+        while (currentCoroutineContext().isActive) {
             try {
                 return ktorClient.webSocket(url, request, block)
             } catch (exc: EOFException) {

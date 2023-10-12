@@ -3,7 +3,7 @@ package tech.relaycorp.poweb.websocket
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.HttpClientEngine
 import io.ktor.client.engine.okhttp.OkHttp
-import io.ktor.client.features.websocket.WebSockets
+import io.ktor.client.plugins.websocket.WebSockets
 import okhttp3.OkHttpClient
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
