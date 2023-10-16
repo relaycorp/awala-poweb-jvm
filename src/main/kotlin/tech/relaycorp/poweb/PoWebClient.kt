@@ -218,6 +218,7 @@ public class PoWebClient internal constructor(
                 collectAndAckParcels(this, this@channelFlow, trustedCertificates)
             } catch (e: CancellationException) {
                 close(CloseReason(CloseReason.Codes.NORMAL, ""))
+                return@wsConnect
             }
 
             // The server must've closed the connection for us to get here, since we're consuming
