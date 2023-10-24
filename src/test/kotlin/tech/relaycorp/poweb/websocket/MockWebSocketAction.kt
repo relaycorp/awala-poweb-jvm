@@ -1,6 +1,6 @@
 package tech.relaycorp.poweb.websocket
 
-import io.ktor.http.cio.websocket.CloseReason
+import io.ktor.websocket.CloseReason
 import okhttp3.WebSocket
 import okhttp3.mockwebserver.MockWebServer
 import okio.ByteString.Companion.toByteString
