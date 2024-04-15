@@ -3,7 +3,7 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 buildscript {
     ext.kotlinVersion = '1.9.23'
     ext.kotlinCoroutinesVersion = '1.8.0'
-    ext.ktorVersion = '2.3.9'
+    ext.ktorVersion = '2.3.10'
     ext.okhttpVersion = '4.12.0'
 }
 
