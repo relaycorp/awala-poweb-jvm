@@ -262,7 +262,7 @@ class ParcelCollectionTest : WebSocketTestCase() {
         }
 
         @Test
-        fun `Streaming mode can be changed on request`(): Unit = runBlocking {
+        fun `Close upon completion should be supported`(): Unit = runBlocking {
             addServerConnection(ChallengeAction(nonce), CloseConnectionAction())
 
             client.use {
