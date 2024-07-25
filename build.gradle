@@ -38,7 +38,7 @@ dependencies {
     implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlinVersion")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:$kotlinCoroutinesVersion")
 
-    api('tech.relaycorp:awala:[1.66.4,2.0.0)')
+    api('tech.relaycorp:awala:[1.69.0,2.0.0)')
     testImplementation('tech.relaycorp:awala-testing:1.5.31')
 
     // Handshake nonce signatures
